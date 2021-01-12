@@ -2,4 +2,7 @@
 
 #include "harness.h"
 
-void main() { measure(NULL, 0, 0, NULL, NULL, NULL, 0); }
+void main() {
+  measure_results_t res;
+  measure(NULL, 0, 0, &res);
+}
