@@ -13,6 +13,7 @@
 #include <perfmon/pfmlib_perf_event.h>
 
 #include "harness.h"
+#include "runtest.h"
 
 #define CHILD_MEM_SIZE 512
 
@@ -65,7 +66,6 @@ int measure(char *code_to_test, unsigned long code_size,
     Prepare child for testing block.
     TODO:
       - move child stack
-      - copy block and tail
       - set child rip to execute test code
     */
 
@@ -76,6 +76,11 @@ int measure(char *code_to_test, unsigned long code_size,
     int ret;
 
     close(child_ready_pipefd[0]); // Close unused read end
+
+    /* TODO: Copy test block and tail */
+    void *runtest_addr = runtest;
+    void *testblock_addr = test_block;
+    printf("start: %p; end: %p\n", runtest_addr, testblock_addr);
 
     /* Get perf encoding */
     pfm_initialize();
@@ -118,7 +123,6 @@ int measure(char *code_to_test, unsigned long code_size,
       exit(EXIT_FAILURE);
     }
 
-    /* Stop execution until resumed by parent */
-    kill(getpid(), SIGSTOP);
+    runtest();
   }
 }
