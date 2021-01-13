@@ -26,7 +26,6 @@ Parent algorithm.
 create_child()
 wait_for_child_ready()
 move_child_stack()
-copy_block_and_tail()
 start_child_test()
 for i in 0..MAX_FAULTS:
   wait_on_child()
@@ -44,10 +43,12 @@ Child algorithm.
 enable_perf_counters()
 pin_process()
 alert_parent_ready()
+copy_block_and_tail()
 ```
 
 Child test algorithm.
 ```
+unmap_pages()
 for i in 0..ITERATIONS:
   initialize_registers_and_mem()
   start_performance_counters()
