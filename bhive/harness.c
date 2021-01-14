@@ -1,7 +1,8 @@
 #define _GNU_SOURCE
 #include <signal.h>
 #include <stdlib.h>
-#include <string.h> /* for memset */
+#include <string.h>   /* for memset */
+#include <sys/mman.h> /* for mprotect, PROT_* */
 #include <sys/ptrace.h>
 #include <sys/resource.h> /* for PRIO_PROCESS */
 #include <sys/user.h>     /* for user_regs_struct, PAGE_SIZE, PAGE_SHIFT */
@@ -14,6 +15,7 @@
 
 #include "harness.h"
 #include "runtest.h"
+#include "tail_template.h"
 
 #define CHILD_MEM_SIZE 512
 
@@ -23,15 +25,16 @@ static int read_child_regs(pid_t child, struct user_regs_struct *regs) {
 #endif
 }
 
+static void *get_page_start(void *addr) {
+  return (void *)(((unsigned long)addr >> PAGE_SHIFT) << PAGE_SHIFT);
+}
+
+static void *get_page_end(void *addr) {
+  return get_page_start(addr) + PAGE_SIZE;
+}
+
 int measure(char *code_to_test, unsigned long code_size,
             unsigned int unroll_factor, measure_results_t *res) {
-  char child_ready_signal;
-  int child_ready_pipefd[2];
-  if (pipe(child_ready_pipefd) == -1) {
-    perror("[PARENT, ERR] Cannot creating pipe");
-    return -1;
-  }
-
   pid_t child = fork();
   if (child == -1) { /* Error */
     perror("[PARENT, ERR] Cannot create child with fork");
@@ -40,8 +43,6 @@ int measure(char *code_to_test, unsigned long code_size,
 
   } else if (child != 0) { /* Parent program */
 
-    close(child_ready_pipefd[1]); // Close unused write end
-
     /* Wait for child */
     int child_stat;
     if (wait(&child_stat) == -1) {
@@ -49,6 +50,7 @@ int measure(char *code_to_test, unsigned long code_size,
       kill(child, SIGKILL);
       return -1;
     }
+
     if (!WIFSTOPPED(child_stat)) {
       printf("[PARENT, ERR] Child not stopped by SIGSTOP.\n");
       kill(child, SIGKILL);
@@ -75,12 +77,29 @@ int measure(char *code_to_test, unsigned long code_size,
   } else { /* Child program */
     int ret;
 
-    close(child_ready_pipefd[0]); // Close unused read end
-
-    /* TODO: Copy test block and tail */
-    void *runtest_addr = runtest;
-    void *testblock_addr = test_block;
-    printf("start: %p; end: %p\n", runtest_addr, testblock_addr);
+    /* Copy test block and tail */
+    void *runtest_page_start = get_page_start(runtest);
+    unsigned long unrolled_block_size = code_size * unroll_factor;
+    unsigned long tail_size = tail_end - tail_start;
+    void *runtest_page_end =
+        get_page_end(test_block + unrolled_block_size + tail_size);
+    mprotect(runtest_page_start, runtest_page_end - runtest_page_start,
+             PROT_READ | PROT_WRITE);
+    char *block_ptr = test_block;
+    /* Copy test block */
+    for (int i = 0; i < unroll_factor; i++) {
+      for (char *word = code_to_test; word < code_to_test + code_size; word++) {
+        *block_ptr = *word;
+        block_ptr++;
+      }
+    }
+    /* Copy tail */
+    for (char *word = tail_start; word < tail_end; word++) {
+      *block_ptr = *word;
+      block_ptr++;
+    }
+    mprotect(runtest_page_start, runtest_page_end - runtest_page_start,
+             PROT_EXEC);
 
     /* Get perf encoding */
     pfm_initialize();
