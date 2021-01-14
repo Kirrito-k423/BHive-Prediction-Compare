@@ -83,24 +83,20 @@ int measure(char *code_to_test, unsigned long code_size,
     unsigned long tail_size = tail_end - tail_start;
     void *runtest_page_end =
         get_page_end(test_block + unrolled_block_size + tail_size);
+
     ret = mprotect(runtest_page_start, runtest_page_end - runtest_page_start,
                    PROT_READ | PROT_WRITE | PROT_EXEC);
     if (ret == -1) {
       perror("[CHILD] Error unprotecting test code");
     }
+
     char *block_ptr = (char *)test_block;
-    /* Copy test block */
     for (int i = 0; i < unroll_factor; i++) {
-      for (char *word = code_to_test; word < code_to_test + code_size; word++) {
-        *block_ptr = *word;
-        block_ptr++;
-      }
+      memcpy(block_ptr, code_to_test, code_size);
+      block_ptr += code_size;
     }
-    /* Copy tail */
-    for (char *word = (char *)tail_start; word < (char *)tail_end; word++) {
-      *block_ptr = *word;
-      block_ptr++;
-    }
+    memcpy(block_ptr, tail_start, tail_end - tail_start);
+
     mprotect(runtest_page_start, runtest_page_end - runtest_page_start,
              PROT_EXEC);
     if (ret == -1) {
