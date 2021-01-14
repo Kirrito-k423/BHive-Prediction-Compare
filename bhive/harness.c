@@ -17,7 +17,12 @@
 #include "runtest.h"
 #include "tail_template.h"
 
-#define CHILD_MEM_SIZE 512
+/*
+ * Size of child stack.
+ *
+ * Compiling and disassembling runtest.c can tell how much is needed.
+ */
+#define CHILD_STACK_SIZE 512
 
 static int read_child_regs(pid_t child, struct user_regs_struct *regs) {
 #ifdef __x86_64__
@@ -101,6 +106,23 @@ int measure(char *code_to_test, unsigned long code_size,
              PROT_EXEC);
     if (ret == -1) {
       perror("[CHILD] Error protecting test code");
+    }
+
+    /* Allocate memory for stack after unmapping.
+     *
+     * The stack is setup at the end of the last page containing runtest. If
+     * there is less than CHILD_STACK_SIZE bytes left, a new page is allocated.
+     */
+    unsigned long bytes_left =
+        (unsigned long)runtest_page_end - (unsigned long)block_ptr;
+    if (bytes_left < CHILD_STACK_SIZE) {
+      printf("[CHILD] Not enough stack space. Mapping page for stack...");
+      void *stack_top =
+          mmap(runtest_page_end, PAGE_SIZE, PROT_READ | PROT_WRITE,
+               MAP_PRIVATE | MAP_FIXED | MAP_ANONYMOUS, 0, 0);
+      if (stack_top == (void *)-1) {
+        perror("[CHILD] Error mapping memory for stack");
+      }
     }
 
     /* Get perf encoding */
