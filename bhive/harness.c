@@ -1,4 +1,5 @@
 #define _GNU_SOURCE
+#include <errno.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>   /* for memset */
@@ -18,15 +19,60 @@
 #include "tail_template.h"
 
 /*
- * Size of child stack.
- *
- * Compiling and disassembling runtest.c can tell how much is needed.
+ * Address of page to be used for child stack.
  */
-#define CHILD_STACK_SIZE 512
+#define STACK_ADDR (void *)0x0000700000000000
 
 static int read_child_regs(pid_t child, struct user_regs_struct *regs) {
 #ifdef __x86_64__
   return ptrace(PTRACE_GETREGS, child, NULL, regs);
+#endif
+}
+
+static int set_child_regs(pid_t child, struct user_regs_struct *regs) {
+#ifdef __x86_64__
+  return ptrace(PTRACE_SETREGS, child, NULL, regs);
+#endif
+}
+
+/**
+ * Move child stack to stack_page_addr.
+ *
+ * @return 0 when successful. -1 if error while reading child registers.
+ *         -2 if error copying stack values. -3 if error setting child
+ *         registers. Errno set by syscall that produced the error.
+ */
+static int move_child_stack(pid_t child, void *stack_page_addr) {
+#ifdef __x86_64__
+  /*
+   * x86 stack grows downward so base pointer (rbp) is at higher address than
+   * stack pointer (rsp).
+   */
+  struct user_regs_struct regs;
+  int ret = read_child_regs(child, &regs);
+  if (ret == -1) {
+    return -1;
+  }
+  long *ori_bp = (long *)regs.rbp;
+  long *ori_sp = (long *)regs.rsp;
+  /* Copy stack values */
+  errno = 0;
+  for (long *p = ori_sp, *new_p = stack_page_addr; p < ori_bp; p++, new_p++) {
+    long word = ptrace(PTRACE_PEEKDATA, child, p, NULL);
+    ptrace(PTRACE_POKEDATA, child, new_p, word);
+  }
+  if (errno != 0) {
+    return -2;
+  }
+  /* Move stack */
+  unsigned long long stack_size = regs.rbp - regs.rsp;
+  regs.rbp = (unsigned long long)stack_page_addr + PAGE_SIZE;
+  regs.rsp = regs.rbp - stack_size;
+  ret = set_child_regs(child, &regs);
+  if (ret == -1) {
+    return -3;
+  }
+  return 0;
 #endif
 }
 
@@ -47,8 +93,12 @@ int measure(char *code_to_test, unsigned long code_size,
     return -1;
 
   } else if (child != 0) { /* Parent program */
+    int ret;
 
-    /* Wait for child */
+    /*
+     * Wait for child. When child stops execution using kill(getpid(), SIGSTOP),
+     * it is already in runtest.c::runtest().
+     */
     int child_stat;
     if (wait(&child_stat) == -1) {
       perror("[PARENT, ERR] Wait error");
@@ -62,19 +112,31 @@ int measure(char *code_to_test, unsigned long code_size,
       return -1;
     }
 
-    struct user_regs_struct regs;
-    if (read_child_regs(child, &regs) == -1) {
-      perror("[PARENT, ERR] Reading child regs");
-      kill(child, SIGKILL);
-      return -1;
-    }
-
     /*
     Prepare child for testing block.
     TODO:
       - move child stack
       - set child rip to execute test code
     */
+
+    /* Move child stack */
+    unsigned long unrolled_block_size = code_size * unroll_factor;
+    unsigned long tail_size = tail_end - tail_start;
+    void *test_block_end = test_block + unrolled_block_size + tail_size;
+    void *stack_page_addr = get_page_end(test_block_end);
+    ret = move_child_stack(child, stack_page_addr);
+    if (ret == -1) {
+      perror("[PARENT, ERR] Error reading child registers while moving stack");
+    } else if (ret == -2) {
+      perror("[PARENT, ERR] Error copying stack values while moving stack");
+    } else if (ret == -3) {
+      perror("[PARENT, ERR] Error setting child registers while moving stack");
+    }
+    if (ret != 0) {
+      kill(child, SIGKILL);
+      return -1;
+    }
+    printf("[PARENT] Child stack moved.\n");
 
     kill(child, SIGKILL);
     return -1;
@@ -113,17 +175,13 @@ int measure(char *code_to_test, unsigned long code_size,
      * The stack is setup at the end of the last page containing runtest. If
      * there is less than CHILD_STACK_SIZE bytes left, a new page is allocated.
      */
-    unsigned long bytes_left =
-        (unsigned long)runtest_page_end - (unsigned long)block_ptr;
-    if (bytes_left < CHILD_STACK_SIZE) {
-      printf("[CHILD] Not enough stack space. Mapping page for stack...");
-      void *stack_top =
-          mmap(runtest_page_end, PAGE_SIZE, PROT_READ | PROT_WRITE,
-               MAP_PRIVATE | MAP_FIXED | MAP_ANONYMOUS, 0, 0);
-      if (stack_top == (void *)-1) {
-        perror("[CHILD] Error mapping memory for stack");
-      }
+    void *stack_top =
+        mmap(STACK_ADDR, PAGE_SIZE, PROT_READ | PROT_WRITE,
+             MAP_PRIVATE | MAP_FIXED_NOREPLACE | MAP_ANONYMOUS, -1, 0);
+    if (stack_top == (void *)-1) {
+      perror("[CHILD] Error mapping memory for stack");
     }
+    printf("[CHILD] Stack page mapped.\n");
 
     /* Get perf encoding */
     pfm_initialize();

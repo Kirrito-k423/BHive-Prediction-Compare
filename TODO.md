@@ -1,12 +1,13 @@
 # Things the parent should do
-  1. Create the child.
-  2. Wait for child to be ready.
+  1. [DONE] Create the child.
+  2. [DONE] Wait for child to be ready.
+  3. [DONE] Move child stack.
 
 # Things the child before running block
-  1. Copy block + tail to designated spot.
-  2. Enable performance counters.
-  3. Pin child process.
-  4. Unmap pages but the one holding child code and block.
+  1. [DONE] Copy block + tail to designated spot.
+  2. [DONE] Enable performance counters.
+  3. [DONE] Pin child process.
+  4. Unmap pages but the one holding child code and block and stack.
   5. Initialize registers.
   6. Start performance counters.
   7. Jump to block.
@@ -14,7 +15,7 @@
 # Things the tail should do
   1. Turn off counters.
   2. Store counter values.
-  3. Jump back to step 5 in child.
+  3. [DONE] Jump back to step 5 in child.
 
 # Testing child functionality
   1. Check that block and tail is copied.
