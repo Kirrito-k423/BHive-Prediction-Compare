@@ -1,11 +1,13 @@
 #define _GNU_SOURCE
 #include <errno.h>
+#include <fcntl.h> /* for O_RDWR, O_CREAT */
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>   /* for memset */
 #include <sys/mman.h> /* for mprotect, PROT_* */
 #include <sys/ptrace.h>
 #include <sys/resource.h> /* for PRIO_PROCESS */
+#include <sys/signal.h>   /* for siginfo_t */
 #include <sys/user.h>     /* for user_regs_struct, PAGE_SIZE, PAGE_SHIFT */
 #include <sys/wait.h>
 #include <unistd.h>
@@ -14,14 +16,10 @@
 
 #include <perfmon/pfmlib_perf_event.h>
 
+#include "common.h"
 #include "harness.h"
 #include "runtest.h"
 #include "tail_template.h"
-
-/*
- * Address of page to be used for child stack.
- */
-#define STACK_ADDR (void *)0x0000700000000000
 
 static int read_child_regs(pid_t child, struct user_regs_struct *regs) {
 #ifdef __x86_64__
@@ -42,7 +40,8 @@ static int set_child_regs(pid_t child, struct user_regs_struct *regs) {
  *         -2 if error copying stack values. -3 if error setting child
  *         registers. Errno set by syscall that produced the error.
  */
-static int move_child_stack(pid_t child, void *stack_page_addr) {
+static int move_child_stack(pid_t child, void *stack_page_addr,
+                            void *child_stack) {
 #ifdef __x86_64__
   /*
    * x86 stack grows downward so base pointer (rbp) is at higher address than
@@ -55,17 +54,39 @@ static int move_child_stack(pid_t child, void *stack_page_addr) {
   }
   long *ori_bp = (long *)regs.rbp;
   long *ori_sp = (long *)regs.rsp;
+  unsigned long long stack_size = regs.rbp - regs.rsp;
+
   /* Copy stack values */
+  long *new_bp = (long *)(stack_page_addr + PAGE_SIZE) - 1;
   errno = 0;
-  for (long *p = ori_sp, *new_p = stack_page_addr; p < ori_bp; p++, new_p++) {
+  for (long *p = ori_bp, *new_p = new_bp; p > ori_sp; p--, new_p--) {
     long word = ptrace(PTRACE_PEEKDATA, child, p, NULL);
     ptrace(PTRACE_POKEDATA, child, new_p, word);
+    long new_word = ptrace(PTRACE_PEEKDATA, child, new_p, NULL);
   }
   if (errno != 0) {
     return -2;
   }
+
+  /* Sanity check */
+  for (int i = 0; i < stack_size / sizeof(long); i++) {
+    long *ori_p = ori_bp - i;
+    long *new_p = (long *)(stack_page_addr + PAGE_SIZE) - 1 - i;
+    long ori_word = ptrace(PTRACE_PEEKDATA, child, ori_p, NULL);
+    long new_word = ptrace(PTRACE_PEEKDATA, child, new_p, NULL);
+    long new_word_sh = *((long *)(child_stack + PAGE_SIZE) - 1 - i);
+    if (ori_word != new_word) {
+      printf("[BUG] Something is wrong with stack copy. ori: %ld, new: %ld\n",
+             ori_word, new_word);
+    }
+    if (ori_word != new_word_sh) {
+      printf("[BUG] Something is wrong with stack copy. ori: %ld, shared mem: "
+             "%ld\n",
+             ori_word, new_word_sh);
+    }
+  }
+
   /* Move stack */
-  unsigned long long stack_size = regs.rbp - regs.rsp;
   regs.rbp = (unsigned long long)stack_page_addr + PAGE_SIZE;
   regs.rsp = regs.rbp - stack_size;
   ret = set_child_regs(child, &regs);
@@ -86,6 +107,16 @@ static void *get_page_end(void *addr) {
 
 int measure(char *code_to_test, unsigned long code_size,
             unsigned int unroll_factor, measure_results_t *res) {
+  /* Create shared memory */
+  mode_t mode = 0777; // Everyone has read, write, execute permission
+  int shm_fd = shm_open("/bhive_shm", O_RDWR | O_CREAT, mode);
+  if (shm_fd == -1) {
+    perror("[PARENT, ERR] Error creating shared memory");
+    return -1;
+  }
+  shm_unlink("/bhive_shm");
+  ftruncate(shm_fd, SHARED_MEM_SIZE);
+
   pid_t child = fork();
   if (child == -1) { /* Error */
     perror("[PARENT, ERR] Cannot create child with fork");
@@ -94,6 +125,28 @@ int measure(char *code_to_test, unsigned long code_size,
 
   } else if (child != 0) { /* Parent program */
     int ret;
+
+    /* Map shared memory */
+    void *child_mem =
+        mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
+    if (child_mem == (void *)-1) {
+      perror("[PARENT, ERR] Error mapping child page portion of shared memory");
+      kill(child, SIGKILL);
+      return -1;
+    }
+    void *child_stack = mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE,
+                             MAP_SHARED, shm_fd, PAGE_SIZE);
+    if (child_stack == (void *)-1) {
+      perror(
+          "[PARENT, ERR] Error mapping child stack portion of shared memory");
+      kill(child, SIGKILL);
+      return -1;
+    }
+
+    /* Initialize child test page */
+    for (uint64_t *p = child_mem; p < child_mem + PAGE_SIZE; p++) {
+      *p = INIT_VALUE;
+    }
 
     /*
      * Wait for child. When child stops execution using kill(getpid(), SIGSTOP),
@@ -112,19 +165,8 @@ int measure(char *code_to_test, unsigned long code_size,
       return -1;
     }
 
-    /*
-    Prepare child for testing block.
-    TODO:
-      - move child stack
-      - set child rip to execute test code
-    */
-
     /* Move child stack */
-    unsigned long unrolled_block_size = code_size * unroll_factor;
-    unsigned long tail_size = tail_end - tail_start;
-    void *test_block_end = test_block + unrolled_block_size + tail_size;
-    void *stack_page_addr = get_page_end(test_block_end);
-    ret = move_child_stack(child, stack_page_addr);
+    ret = move_child_stack(child, STACK_ADDR, child_stack);
     if (ret == -1) {
       perror("[PARENT, ERR] Error reading child registers while moving stack");
     } else if (ret == -2) {
@@ -137,6 +179,22 @@ int measure(char *code_to_test, unsigned long code_size,
       return -1;
     }
     printf("[PARENT] Child stack moved.\n");
+
+    ptrace(PTRACE_CONT, child, 0, 0);
+    if (wait(&child_stat) == -1) {
+      perror("[PARENT, ERR] Wait error");
+      kill(child, SIGKILL);
+      return -1;
+    }
+
+    siginfo_t sinfo;
+    ptrace(PTRACE_GETSIGINFO, child, 0, &sinfo);
+    printf("Signo: %d\n", sinfo.si_signo);
+    printf("Addr: %p\n", sinfo.si_addr);
+    struct user_regs_struct regs;
+    ptrace(PTRACE_GETREGS, child, 0, &regs);
+    printf("rip: %llx\n", regs.rip);
+    printf("rbp: %llx\n", regs.rbp);
 
     kill(child, SIGKILL);
     return -1;
@@ -175,9 +233,8 @@ int measure(char *code_to_test, unsigned long code_size,
      * The stack is setup at the end of the last page containing runtest. If
      * there is less than CHILD_STACK_SIZE bytes left, a new page is allocated.
      */
-    void *stack_top =
-        mmap(STACK_ADDR, PAGE_SIZE, PROT_READ | PROT_WRITE,
-             MAP_PRIVATE | MAP_FIXED_NOREPLACE | MAP_ANONYMOUS, -1, 0);
+    void *stack_top = mmap(STACK_ADDR, PAGE_SIZE, PROT_READ | PROT_WRITE,
+                           MAP_SHARED, shm_fd, PAGE_SIZE);
     if (stack_top == (void *)-1) {
       perror("[CHILD] Error mapping memory for stack");
     }
@@ -224,6 +281,6 @@ int measure(char *code_to_test, unsigned long code_size,
       exit(EXIT_FAILURE);
     }
 
-    runtest();
+    runtest(perf_fd, runtest_page_end);
   }
 }

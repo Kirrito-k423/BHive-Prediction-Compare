@@ -1,7 +1,7 @@
 CC := gcc
 
 main: main.o harness.o runtest.o tail_template.o
-	$(CC) -o main main.o harness.o runtest.o tail_template.o -lpfm
+	$(CC) -o main main.o harness.o runtest.o tail_template.o -lrt -lpfm
 
 harness.o: harness.c
 	$(CC) -c -o harness.o harness.c
