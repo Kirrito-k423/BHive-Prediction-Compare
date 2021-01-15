@@ -87,7 +87,7 @@ static int move_child_stack(pid_t child, void *stack_page_addr,
   }
 
   /* Move stack */
-  regs.rbp = (unsigned long long)stack_page_addr + PAGE_SIZE;
+  regs.rbp = (unsigned long long)new_bp;
   regs.rsp = regs.rbp - stack_size;
   ret = set_child_regs(child, &regs);
   if (ret == -1) {
@@ -144,7 +144,8 @@ int measure(char *code_to_test, unsigned long code_size,
     }
 
     /* Initialize child test page */
-    for (uint64_t *p = child_mem; p < child_mem + PAGE_SIZE; p++) {
+    for (uint64_t *p = child_mem; p < (uint64_t *)(child_mem + PAGE_SIZE);
+         p++) {
       *p = INIT_VALUE;
     }
 
@@ -166,7 +167,7 @@ int measure(char *code_to_test, unsigned long code_size,
     }
 
     /* Move child stack */
-    ret = move_child_stack(child, STACK_ADDR, child_stack);
+    ret = move_child_stack(child, AUX_MEM_ADDR, child_stack);
     if (ret == -1) {
       perror("[PARENT, ERR] Error reading child registers while moving stack");
     } else if (ret == -2) {
@@ -228,14 +229,14 @@ int measure(char *code_to_test, unsigned long code_size,
       perror("[CHILD] Error protecting test code");
     }
 
-    /* Allocate memory for stack after unmapping.
+    /* Allocate aux. memory for use after unmapping.
      *
-     * The stack is setup at the end of the last page containing runtest. If
-     * there is less than CHILD_STACK_SIZE bytes left, a new page is allocated.
+     * A new stack for child will be setup at the end of the aux. memory.
+     * Counter values will be stored at the beginning of the aux. memory.
      */
-    void *stack_top = mmap(STACK_ADDR, PAGE_SIZE, PROT_READ | PROT_WRITE,
-                           MAP_SHARED, shm_fd, PAGE_SIZE);
-    if (stack_top == (void *)-1) {
+    void *aux_addr = mmap(AUX_MEM_ADDR, PAGE_SIZE, PROT_READ | PROT_WRITE,
+                          MAP_SHARED, shm_fd, PAGE_SIZE);
+    if (aux_addr == (void *)-1) {
       perror("[CHILD] Error mapping memory for stack");
     }
     printf("[CHILD] Stack page mapped.\n");
@@ -281,6 +282,6 @@ int measure(char *code_to_test, unsigned long code_size,
       exit(EXIT_FAILURE);
     }
 
-    runtest(perf_fd, runtest_page_end);
+    runtest(perf_fd, shm_fd, runtest_page_end);
   }
 }
