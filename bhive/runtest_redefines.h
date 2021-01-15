@@ -9,9 +9,17 @@
 
 #define SIGSTOP 19
 
+#define PAGE_SHIFT 12
+#define PAGE_SIZE (1u << PAGE_SHIFT)
+
+#define PERF_EVENT_IOC_ENABLE 9216
+#define PERF_EVENT_IOC_DISABLE 9217
+
 #define SYS_getpid 39
+#define SYS_ioctl 16
 #define SYS_kill 62
 #define SYS_munmap 11
+#define SYS_read 0
 #define SYS_write 1
 
 #endif

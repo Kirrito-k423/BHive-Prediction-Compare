@@ -3,19 +3,33 @@
  * everything else is unmapped at this point, no stdlib available.
  **/
 
+#include "common.h"
 #include "runtest_redefines.h"
+
+#define ALWAYS_INLINE __attribute__((always_inline)) static inline
 
 #define NULL (void *)0
 
-#define ITERATIONS 1
+#define INITIALIZE_REGISTERS()                                                 \
+  asm __volatile__("mov " INIT_VALUE_STR ", %rax\n\t"                          \
+                   "mov " INIT_VALUE_STR ", %rbx\n\t")
 
 typedef int pid_t;
 typedef long int size_t;
 typedef unsigned long int ssize_t;
+typedef unsigned long int uint64_t;
 
-__attribute__((always_inline)) static inline long
-syscall(long number, void *param1, void *param2, void *param3, void *param4,
-        void *param5, void *param6) {
+ALWAYS_INLINE void *get_page_start(void *addr) {
+  return (void *)(((uint64_t)addr >> PAGE_SHIFT) << PAGE_SHIFT);
+}
+
+ALWAYS_INLINE void *get_page_end(void *addr) {
+  return get_page_start(addr) + PAGE_SIZE;
+}
+
+ALWAYS_INLINE long syscall(long number, void *param1, void *param2,
+                           void *param3, void *param4, void *param5,
+                           void *param6) {
 #ifdef __x86_64__
   long ret = 0;
   asm __volatile__("mov %1, %%rax\n\t"
@@ -34,43 +48,72 @@ syscall(long number, void *param1, void *param2, void *param3, void *param4,
 #endif
 }
 
-__attribute__((always_inline)) static inline pid_t getpid(void) {
+ALWAYS_INLINE pid_t getpid(void) {
   return syscall(SYS_getpid, NULL, NULL, NULL, NULL, NULL, NULL);
 }
 
-__attribute__((always_inline)) static inline int kill(pid_t pid, int sig) {
-  return syscall(SYS_kill, (void *)(long int)pid, (void *)(long int)sig, NULL,
-                 NULL, NULL, NULL);
+ALWAYS_INLINE int kill(pid_t pid, int sig) {
+  return syscall(SYS_kill, (void *)(size_t)pid, (void *)(size_t)sig, NULL, NULL,
+                 NULL, NULL);
 }
 
-__attribute__((always_inline)) static inline int munmap(void *addr,
-                                                        size_t len) {
+ALWAYS_INLINE int munmap(void *addr, size_t len) {
   return syscall(SYS_munmap, addr, (void *)len, NULL, NULL, NULL, NULL);
 }
 
-__attribute__((always_inline)) static inline ssize_t
-write(int fd, const void *buf, size_t count) {
-  return syscall(SYS_write, (void *)(long int)fd, (void *)buf, (void *)count,
+ALWAYS_INLINE ssize_t read(int fd, void *buf, size_t count) {
+  return syscall(SYS_read, (void *)(size_t)fd, buf, (void *)count, NULL, NULL,
+                 NULL);
+}
+
+ALWAYS_INLINE ssize_t write(int fd, const void *buf, size_t count) {
+  return syscall(SYS_write, (void *)(size_t)fd, (void *)buf, (void *)count,
                  NULL, NULL, NULL);
 }
 
-void runtest() {
+ALWAYS_INLINE int enable_pmu(int fd) {
+  return syscall(SYS_ioctl, (void *)(ssize_t)fd, (void *)PERF_EVENT_IOC_ENABLE,
+                 NULL, NULL, NULL, NULL);
+}
+
+ALWAYS_INLINE int disable_pmu(int fd) {
+  return syscall(SYS_ioctl, (void *)(ssize_t)fd, (void *)PERF_EVENT_IOC_DISABLE,
+                 NULL, NULL, NULL, NULL);
+}
+
+void runtest(int perf_fd, int shm_fd, void *test_page_end) {
   kill(getpid(), SIGSTOP);
 
-  /* TODO: Unmap pages */
-  asm __volatile__(".global test_block\n\t"
+  /* Unmap pages */
+  munmap((void *)0, (size_t)get_page_start(runtest));
+  /* TODO: This line causes sigsegv. Fix */
+  // munmap(test_page_end, (size_t)AUX_MEM_ADDR -
+  // (size_t)test_page_end);
+
+  asm __volatile__(".global restart_point\n\t"
                    "restart_point:\n\t");
-  /* TODO: Stop performance counters */
+
+  /* Stop performance counters */
+  disable_pmu(perf_fd);
+
   int iters = ITERATIONS;
-  asm __volatile__(".global test_block\n\t"
+  asm __volatile__(".global test_start\n\t"
                    "test_start:\n\t");
   iters--;
   if (iters == 0) {
     kill(getpid(), SIGSTOP);
   }
-  /* TODO: Initialize registers and memory */
-  /* TODO: Store last performance counter values */
-  /* TODO: Start performance counters */
+  /* Store last performance counter values */
+  uint64_t values[3];
+  uint64_t count;
+  read(perf_fd, values, sizeof(values));
+  if (values[2])
+    count = (uint64_t)((double)values[0] * values[1] / values[2]);
+  *(uint64_t *)(AUX_MEM_ADDR + CYC_COUNT_OFFSET) = count;
+  /* Start performance counters */
+  enable_pmu(perf_fd);
+  /* TODO: Initialize registers */
+  INITIALIZE_REGISTERS();
   asm __volatile__(".global test_block\n\t"
                    "test_block:\n\t");
   /* INSERT HERE: Stop performance counters */
