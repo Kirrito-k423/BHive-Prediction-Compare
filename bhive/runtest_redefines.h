@@ -5,6 +5,9 @@
 #ifndef _TESTBLOCK_REDEFINES_H_
 #define _TESTBLOCK_REDEFINES_H_
 
+/*******************************************************************************
+ * Redefined constants.
+ */
 #ifdef __x86_64__
 
 #define SIGSTOP 19
@@ -23,5 +26,89 @@
 #define SYS_write 1
 
 #endif
+
+/*******************************************************************************
+ * Redefine types.
+ */
+
+#define NULL (void *)0
+
+typedef int pid_t;
+typedef long int ssize_t;
+typedef unsigned long int size_t;
+typedef unsigned long int uint64_t;
+
+/*******************************************************************************
+ * Redefine syscall functions.
+ */
+
+#define ALWAYS_INLINE __attribute__((always_inline)) static inline
+
+ALWAYS_INLINE long syscall(long number, void *param1, void *param2,
+                           void *param3, void *param4, void *param5,
+                           void *param6) {
+#ifdef __x86_64__
+  long ret = 0;
+  asm __volatile__("mov %1, %%rax\n\t"
+                   "mov %2, %%rdi\n\t"
+                   "mov %3, %%rsi\n\t"
+                   "mov %4, %%rdx\n\t"
+                   "mov %5, %%r10\n\t"
+                   "mov %6, %%r8\n\t"
+                   "mov %7, %%r9\n\t"
+                   "syscall\n\t"
+                   "mov %%rax, %0"
+                   : "=rm"(ret)
+                   : "rmn"(number), "rmn"(param1), "rmn"(param2), "rmn"(param3),
+                     "rmn"(param4), "rmn"(param5), "rmn"(param6));
+  return ret;
+#endif
+}
+
+ALWAYS_INLINE pid_t getpid(void) {
+  return syscall(SYS_getpid, NULL, NULL, NULL, NULL, NULL, NULL);
+}
+
+ALWAYS_INLINE int kill(pid_t pid, int sig) {
+  return syscall(SYS_kill, (void *)(size_t)pid, (void *)(size_t)sig, NULL, NULL,
+                 NULL, NULL);
+}
+
+ALWAYS_INLINE int munmap(void *addr, size_t len) {
+  return syscall(SYS_munmap, addr, (void *)len, NULL, NULL, NULL, NULL);
+}
+
+ALWAYS_INLINE ssize_t read(int fd, void *buf, size_t count) {
+  return syscall(SYS_read, (void *)(ssize_t)fd, buf, (void *)count, NULL, NULL,
+                 NULL);
+}
+
+ALWAYS_INLINE ssize_t write(int fd, const void *buf, size_t count) {
+  return syscall(SYS_write, (void *)(ssize_t)fd, (void *)buf, (void *)count,
+                 NULL, NULL, NULL);
+}
+
+/*******************************************************************************
+ * Utility functions
+ */
+
+ALWAYS_INLINE void *get_page_start(void *addr) {
+  return (void *)(((uint64_t)addr >> PAGE_SHIFT) << PAGE_SHIFT);
+}
+
+ALWAYS_INLINE void *get_page_end(void *addr) {
+  return get_page_start(addr) + PAGE_SIZE;
+}
+
+ALWAYS_INLINE int enable_pmu(int fd) {
+  return syscall(SYS_ioctl, (void *)(ssize_t)fd,
+                 (void *)(size_t)PERF_EVENT_IOC_ENABLE, NULL, NULL, NULL, NULL);
+}
+
+ALWAYS_INLINE int disable_pmu(int fd) {
+  return syscall(SYS_ioctl, (void *)(ssize_t)fd,
+                 (void *)(size_t)PERF_EVENT_IOC_DISABLE, NULL, NULL, NULL,
+                 NULL);
+}
 
 #endif // _TESTBLOCK_REDEFINES_H_

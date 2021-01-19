@@ -19,7 +19,6 @@
 #include "common.h"
 #include "harness.h"
 #include "runtest.h"
-#include "tail_template.h"
 
 static int read_child_regs(pid_t child, struct user_regs_struct *regs) {
 #ifdef __x86_64__
@@ -97,6 +96,18 @@ static int move_child_stack(pid_t child, void *stack_page_addr,
 #endif
 }
 
+#ifdef __x86_64__
+#define SIZE_OF_REL_JUMP 5
+#endif
+
+static size_t insert_jump_to_test_start(void *addr) {
+#ifdef __x86_64__
+  *(int *)addr = 0xe9;
+  *(int *)(addr + 1) = (long int)test_start - (long int)addr - SIZE_OF_REL_JUMP;
+  return SIZE_OF_REL_JUMP;
+#endif
+}
+
 static void *get_page_start(void *addr) {
   return (void *)(((unsigned long)addr >> PAGE_SHIFT) << PAGE_SHIFT);
 }
@@ -116,6 +127,8 @@ int measure(char *code_to_test, unsigned long code_size,
   }
   shm_unlink("/bhive_shm");
   ftruncate(shm_fd, SHARED_MEM_SIZE);
+  dup2(shm_fd, SHM_FD);
+  close(shm_fd);
 
   pid_t child = fork();
   if (child == -1) { /* Error */
@@ -128,14 +141,14 @@ int measure(char *code_to_test, unsigned long code_size,
 
     /* Map shared memory */
     void *child_mem =
-        mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
+        mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, SHM_FD, 0);
     if (child_mem == (void *)-1) {
       perror("[PARENT, ERR] Error mapping child page portion of shared memory");
       kill(child, SIGKILL);
       return -1;
     }
     void *child_stack = mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE,
-                             MAP_SHARED, shm_fd, PAGE_SIZE);
+                             MAP_SHARED, SHM_FD, PAGE_SIZE);
     if (child_stack == (void *)-1) {
       perror(
           "[PARENT, ERR] Error mapping child stack portion of shared memory");
@@ -196,6 +209,7 @@ int measure(char *code_to_test, unsigned long code_size,
     ptrace(PTRACE_GETREGS, child, 0, &regs);
     printf("rip: %llx\n", regs.rip);
     printf("rbp: %llx\n", regs.rbp);
+    printf("core cyc: %lu\n", *(uint64_t *)(child_stack + CYC_COUNT_OFFSET));
 
     kill(child, SIGKILL);
     return -1;
@@ -207,8 +221,8 @@ int measure(char *code_to_test, unsigned long code_size,
     void *runtest_page_start = get_page_start(runtest);
     unsigned long unrolled_block_size = code_size * unroll_factor;
     unsigned long tail_size = tail_end - tail_start;
-    void *runtest_page_end =
-        get_page_end(test_block + unrolled_block_size + tail_size);
+    void *runtest_page_end = get_page_end(test_block + unrolled_block_size +
+                                          tail_size + SIZE_OF_REL_JUMP);
 
     ret = mprotect(runtest_page_start, runtest_page_end - runtest_page_start,
                    PROT_READ | PROT_WRITE | PROT_EXEC);
@@ -222,6 +236,8 @@ int measure(char *code_to_test, unsigned long code_size,
       block_ptr += code_size;
     }
     memcpy(block_ptr, tail_start, tail_end - tail_start);
+    block_ptr += tail_end - tail_start;
+    block_ptr += insert_jump_to_test_start(block_ptr);
 
     mprotect(runtest_page_start, runtest_page_end - runtest_page_start,
              PROT_EXEC);
@@ -235,11 +251,11 @@ int measure(char *code_to_test, unsigned long code_size,
      * Counter values will be stored at the beginning of the aux. memory.
      */
     void *aux_addr = mmap(AUX_MEM_ADDR, PAGE_SIZE, PROT_READ | PROT_WRITE,
-                          MAP_SHARED, shm_fd, PAGE_SIZE);
+                          MAP_SHARED, SHM_FD, PAGE_SIZE);
     if (aux_addr == (void *)-1) {
-      perror("[CHILD] Error mapping memory for stack");
+      perror("[CHILD, ERR] Error mapping memory for stack");
     }
-    printf("[CHILD] Stack page mapped.\n");
+    printf("[CHILD] Stack page mapped at %p.\n", aux_addr);
 
     /* Get perf encoding */
     pfm_initialize();
@@ -265,6 +281,7 @@ int measure(char *code_to_test, unsigned long code_size,
       perror("[CHILD, ERR] Cannot create perf events");
       exit(EXIT_FAILURE);
     }
+    *(int *)(aux_addr + PERF_FD_OFFSET) = perf_fd;
     printf("[CHILD] Perf. events opened.\n");
 
     /* Pin this process */
@@ -282,6 +299,11 @@ int measure(char *code_to_test, unsigned long code_size,
       exit(EXIT_FAILURE);
     }
 
-    runtest(perf_fd, shm_fd, runtest_page_end);
+    /* Save parameters */
+    *(uint64_t *)(aux_addr + ITERATIONS_OFFSET) = ITERATIONS;
+    *(int *)(aux_addr + PERF_FD_OFFSET) = perf_fd;
+    *(void **)(aux_addr + TEST_PAGE_END_OFFSET) = runtest_page_end;
+
+    runtest();
   }
 }

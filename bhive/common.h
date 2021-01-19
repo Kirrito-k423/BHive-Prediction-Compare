@@ -4,7 +4,7 @@
 /* Address of page to be used for child stack. */
 #define AUX_MEM_ADDR (void *)0x0000700000000000
 
-#define ITERATIONS 1
+#define ITERATIONS 2
 
 #define INIT_VALUE 0x2324000
 #define INIT_VALUE_STR "0x2324000"
@@ -15,7 +15,9 @@
  */
 #define SHARED_MEM_SIZE 2 * PAGE_SIZE
 
-#define _COUNTER_BASE __COUNTER__ + 1
-#define CYC_COUNT_OFFSET (__COUNTER__ - _COUNTER_BASE) * 8
+#define CYC_COUNT_OFFSET 0
+#define PERF_FD_OFFSET 8
+#define TEST_PAGE_END_OFFSET 16
+#define ITERATIONS_OFFSET 24
 
 #endif // _COMMON_H_
