@@ -12,6 +12,8 @@
 #define INIT_VALUE 0x2324000
 #define INIT_VALUE_STR "0x2324000"
 
+#define MAX_FAULTS 100
+
 #define SHM_FD 42
 /* Size of shared memory. First page will be mapped to child virtual address
  * pages. Second page mapped to child stack page.

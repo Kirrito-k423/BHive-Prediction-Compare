@@ -219,46 +219,33 @@ int measure(char *code_to_test, unsigned long code_size,
     }
     printf("[PARENT] Child stack moved.\n");
 
-    ptrace(PTRACE_CONT, child, 0, 0);
-    if (wait(&child_stat) == -1) {
-      perror("[PARENT, ERR] Wait error");
-      kill(child, SIGKILL);
-      return -1;
+    for (int i = 0; i < MAX_FAULTS; i++) {
+      ptrace(PTRACE_CONT, child, 0, 0);
+      if (wait(&child_stat) == -1) {
+        perror("[PARENT, ERR] Wait error");
+        kill(child, SIGKILL);
+        return -1;
+      }
+
+      siginfo_t sinfo;
+      ptrace(PTRACE_GETSIGINFO, child, 0, &sinfo);
+
+      if (sinfo.si_signo == SIGSEGV) {
+        printf("[PARENT] Child segfaulted at address %p. Mapping and "
+               "restarting...\n",
+               sinfo.si_addr);
+        move_child_to_map_and_restart(child, sinfo.si_addr);
+        continue;
+      }
+      struct user_regs_struct regs;
+      ptrace(PTRACE_GETREGS, child, 0, &regs);
+      printf("Signo: %d\n", sinfo.si_signo);
+      printf("Addr: %p\n", sinfo.si_addr);
+      printf("rip: %llx\n", regs.rip);
+      printf("rbp: %llx\n", regs.rbp);
+      printf("core cyc: %lu\n", *(uint64_t *)(child_aux + CYC_COUNT_OFFSET));
+      break;
     }
-
-    siginfo_t sinfo;
-    ptrace(PTRACE_GETSIGINFO, child, 0, &sinfo);
-    printf("Signo: %d\n", sinfo.si_signo);
-    printf("Addr: %p\n", sinfo.si_addr);
-    struct user_regs_struct regs;
-    ptrace(PTRACE_GETREGS, child, 0, &regs);
-    printf("rip: %llx\n", regs.rip);
-    printf("rbp: %llx\n", regs.rbp);
-    printf("core cyc: %lu\n", *(uint64_t *)(child_aux + CYC_COUNT_OFFSET));
-
-    if (sinfo.si_signo == SIGSEGV) {
-      printf("[PARENT] Child segfaulted at address %p. Mapping and "
-             "restarting...\n",
-             sinfo.si_addr);
-      move_child_to_map_and_restart(child, sinfo.si_addr);
-    }
-
-    ptrace(PTRACE_CONT, child, 0, 0);
-    if (wait(&child_stat) == -1) {
-      perror("[PARENT, ERR] Wait error");
-      kill(child, SIGKILL);
-      return -1;
-    }
-
-    sinfo;
-    ptrace(PTRACE_GETSIGINFO, child, 0, &sinfo);
-    printf("Signo: %d\n", sinfo.si_signo);
-    printf("Addr: %p\n", sinfo.si_addr);
-    regs;
-    ptrace(PTRACE_GETREGS, child, 0, &regs);
-    printf("rip: %llx\n", regs.rip);
-    printf("rbp: %llx\n", regs.rbp);
-    printf("core cyc: %lu\n", *(uint64_t *)(child_aux + CYC_COUNT_OFFSET));
 
     kill(child, SIGKILL);
     return -1;
@@ -283,6 +270,7 @@ int measure(char *code_to_test, unsigned long code_size,
       memcpy(block_ptr, code_to_test, code_size);
       block_ptr += code_size;
     }
+
     memcpy(block_ptr, tail_start, tail_end - tail_start);
     block_ptr += tail_end - tail_start;
     block_ptr += insert_jump_to_test_start(block_ptr);
@@ -292,6 +280,7 @@ int measure(char *code_to_test, unsigned long code_size,
     if (ret == -1) {
       perror("[CHILD] Error protecting test code");
     }
+    printf("[CHILD] Test block and tail copied.\n");
 
     /* Allocate aux. memory for use after unmapping.
      *
