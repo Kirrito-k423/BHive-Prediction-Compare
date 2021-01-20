@@ -16,8 +16,9 @@
 #define PAGE_SIZE (1u << PAGE_SHIFT)
 #define HALF_PAGE_STR "2048"
 
-#define PERF_EVENT_IOC_ENABLE 9216
 #define PERF_EVENT_IOC_DISABLE 9217
+#define PERF_EVENT_IOC_ENABLE 9216
+#define PERF_EVENT_IOC_RESET 9219
 
 #define PROT_READ 0x1
 #define PROT_WRITE 0x2
@@ -124,6 +125,11 @@ ALWAYS_INLINE int disable_pmu(int fd) {
   return syscall(SYS_ioctl, (void *)(ssize_t)fd,
                  (void *)(size_t)PERF_EVENT_IOC_DISABLE, NULL, NULL, NULL,
                  NULL);
+}
+
+ALWAYS_INLINE int reset_pmu(int fd) {
+  return syscall(SYS_ioctl, (void *)(ssize_t)fd,
+                 (void *)(size_t)PERF_EVENT_IOC_RESET, NULL, NULL, NULL, NULL);
 }
 
 #endif // _TESTBLOCK_REDEFINES_H_

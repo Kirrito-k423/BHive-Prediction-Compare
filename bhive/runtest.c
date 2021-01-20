@@ -102,6 +102,7 @@ void runtest() {
 
   /* Start performance counters */
   int perf_fd = *(int *)(AUX_MEM_ADDR + PERF_FD_OFFSET);
+  reset_pmu(perf_fd);
   enable_pmu(perf_fd);
 
   /* Initialize registers */
