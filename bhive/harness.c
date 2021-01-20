@@ -39,7 +39,7 @@ static int set_child_regs(pid_t child, struct user_regs_struct *regs) {
  *         -2 if error copying stack values. -3 if error setting child
  *         registers. Errno set by syscall that produced the error.
  */
-static int move_child_stack(pid_t child, void *stack_page_addr,
+static int move_child_stack(pid_t child, void *stack_base_addr,
                             void *child_stack) {
 #ifdef __x86_64__
   /*
@@ -56,7 +56,7 @@ static int move_child_stack(pid_t child, void *stack_page_addr,
   unsigned long long stack_size = regs.rbp - regs.rsp;
 
   /* Copy stack values */
-  long *new_bp = (long *)(stack_page_addr + PAGE_SIZE) - 1;
+  long *new_bp = (long *)stack_base_addr;
   errno = 0;
   for (long *p = ori_bp, *new_p = new_bp; p > ori_sp; p--, new_p--) {
     long word = ptrace(PTRACE_PEEKDATA, child, p, NULL);
@@ -70,10 +70,10 @@ static int move_child_stack(pid_t child, void *stack_page_addr,
   /* Sanity check */
   for (int i = 0; i < stack_size / sizeof(long); i++) {
     long *ori_p = ori_bp - i;
-    long *new_p = (long *)(stack_page_addr + PAGE_SIZE) - 1 - i;
+    long *new_p = (long *)stack_base_addr - i;
     long ori_word = ptrace(PTRACE_PEEKDATA, child, ori_p, NULL);
     long new_word = ptrace(PTRACE_PEEKDATA, child, new_p, NULL);
-    long new_word_sh = *((long *)(child_stack + PAGE_SIZE) - 1 - i);
+    long new_word_sh = *((long *)(child_stack + PAGE_SIZE / 2) - i);
     if (ori_word != new_word) {
       printf("[BUG] Something is wrong with stack copy. ori: %ld, new: %ld\n",
              ori_word, new_word);
@@ -94,6 +94,23 @@ static int move_child_stack(pid_t child, void *stack_page_addr,
   }
   return 0;
 #endif
+}
+
+static int move_child_to_map_and_restart(pid_t child, void *fault_addr) {
+  struct user_regs_struct regs;
+  int ret = read_child_regs(child, &regs);
+  if (ret == -1) {
+    return -1;
+  }
+#ifdef __x86_64__
+  regs.rip = (unsigned long long)map_and_restart;
+  regs.rdi = (unsigned long long)fault_addr; // Fault address passed to rdi
+#endif
+  ret = set_child_regs(child, &regs);
+  if (ret == -1) {
+    return -1;
+  }
+  return ret;
 }
 
 #ifdef __x86_64__
@@ -147,8 +164,16 @@ int measure(char *code_to_test, unsigned long code_size,
       kill(child, SIGKILL);
       return -1;
     }
+    void *child_aux = mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED,
+                           SHM_FD, PAGE_SIZE);
+    if (child_aux == (void *)-1) {
+      perror("[PARENT, ERR] Error mapping child aux. memory portion of shared "
+             "memory");
+      kill(child, SIGKILL);
+      return -1;
+    }
     void *child_stack = mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE,
-                             MAP_SHARED, SHM_FD, PAGE_SIZE);
+                             MAP_SHARED, SHM_FD, 2 * PAGE_SIZE);
     if (child_stack == (void *)-1) {
       perror(
           "[PARENT, ERR] Error mapping child stack portion of shared memory");
@@ -180,7 +205,7 @@ int measure(char *code_to_test, unsigned long code_size,
     }
 
     /* Move child stack */
-    ret = move_child_stack(child, AUX_MEM_ADDR, child_stack);
+    ret = move_child_stack(child, STACK_PAGE_ADDR + PAGE_SIZE / 2, child_stack);
     if (ret == -1) {
       perror("[PARENT, ERR] Error reading child registers while moving stack");
     } else if (ret == -2) {
@@ -209,11 +234,34 @@ int measure(char *code_to_test, unsigned long code_size,
     ptrace(PTRACE_GETREGS, child, 0, &regs);
     printf("rip: %llx\n", regs.rip);
     printf("rbp: %llx\n", regs.rbp);
-    printf("core cyc: %lu\n", *(uint64_t *)(child_stack + CYC_COUNT_OFFSET));
+    printf("core cyc: %lu\n", *(uint64_t *)(child_aux + CYC_COUNT_OFFSET));
+
+    if (sinfo.si_signo == SIGSEGV) {
+      printf("[PARENT] Child segfaulted at address %p. Mapping and "
+             "restarting...\n",
+             sinfo.si_addr);
+      move_child_to_map_and_restart(child, sinfo.si_addr);
+    }
+
+    ptrace(PTRACE_CONT, child, 0, 0);
+    if (wait(&child_stat) == -1) {
+      perror("[PARENT, ERR] Wait error");
+      kill(child, SIGKILL);
+      return -1;
+    }
+
+    sinfo;
+    ptrace(PTRACE_GETSIGINFO, child, 0, &sinfo);
+    printf("Signo: %d\n", sinfo.si_signo);
+    printf("Addr: %p\n", sinfo.si_addr);
+    regs;
+    ptrace(PTRACE_GETREGS, child, 0, &regs);
+    printf("rip: %llx\n", regs.rip);
+    printf("rbp: %llx\n", regs.rbp);
+    printf("core cyc: %lu\n", *(uint64_t *)(child_aux + CYC_COUNT_OFFSET));
 
     kill(child, SIGKILL);
     return -1;
-
   } else { /* Child program */
     int ret;
 
@@ -250,7 +298,7 @@ int measure(char *code_to_test, unsigned long code_size,
      * A new stack for child will be setup at the end of the aux. memory.
      * Counter values will be stored at the beginning of the aux. memory.
      */
-    void *aux_addr = mmap(AUX_MEM_ADDR, PAGE_SIZE, PROT_READ | PROT_WRITE,
+    void *aux_addr = mmap(AUX_MEM_ADDR, 2 * PAGE_SIZE, PROT_READ | PROT_WRITE,
                           MAP_SHARED, SHM_FD, PAGE_SIZE);
     if (aux_addr == (void *)-1) {
       perror("[CHILD, ERR] Error mapping memory for stack");

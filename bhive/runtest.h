@@ -4,8 +4,9 @@
 void tail_start();
 void tail_end();
 
+void map_and_restart();
+
 void runtest();
-void restart_point();
 void test_start();
 void test_block();
 

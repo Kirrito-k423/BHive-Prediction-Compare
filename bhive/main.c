@@ -3,8 +3,9 @@
 #include "harness.h"
 
 void main() {
-  // add rax, 1
-  char code[4] = {'\x48', '\x83', '\xC0', '\x01'};
+  // mov rax, [2325000]
+  char code[8] = {'\x48', '\x8B', '\x04', '\x25',
+                  '\x00', '\x50', '\x32', '\x02'};
   measure_results_t res;
-  measure(code, 0, 0, &res);
+  measure(code, 8, 40, &res);
 }

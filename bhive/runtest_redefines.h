@@ -10,17 +10,24 @@
  */
 #ifdef __x86_64__
 
-#define SIGSTOP 19
+#define MAP_SHARED 0x01
 
 #define PAGE_SHIFT 12
 #define PAGE_SIZE (1u << PAGE_SHIFT)
+#define HALF_PAGE_STR "2048"
 
 #define PERF_EVENT_IOC_ENABLE 9216
 #define PERF_EVENT_IOC_DISABLE 9217
 
+#define PROT_READ 0x1
+#define PROT_WRITE 0x2
+
+#define SIGSTOP 19
+
 #define SYS_getpid 39
 #define SYS_ioctl 16
 #define SYS_kill 62
+#define SYS_mmap 9
 #define SYS_munmap 11
 #define SYS_read 0
 #define SYS_write 1
@@ -37,6 +44,7 @@ typedef int pid_t;
 typedef long int ssize_t;
 typedef unsigned long int size_t;
 typedef unsigned long int uint64_t;
+typedef long off_t;
 
 /*******************************************************************************
  * Redefine syscall functions.
@@ -72,6 +80,13 @@ ALWAYS_INLINE pid_t getpid(void) {
 ALWAYS_INLINE int kill(pid_t pid, int sig) {
   return syscall(SYS_kill, (void *)(size_t)pid, (void *)(size_t)sig, NULL, NULL,
                  NULL, NULL);
+}
+
+ALWAYS_INLINE void *mmap(void *addr, size_t length, int prot, int flags, int fd,
+                         off_t offset) {
+  return (void *)syscall(SYS_mmap, addr, (void *)length, (void *)(ssize_t)prot,
+                         (void *)(ssize_t)flags, (void *)(ssize_t)fd,
+                         (void *)offset);
 }
 
 ALWAYS_INLINE int munmap(void *addr, size_t len) {

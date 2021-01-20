@@ -6,46 +6,80 @@
 #include "common.h"
 #include "runtest_redefines.h"
 
-#define INITIALIZE_REGISTERS()                                                 \
-  asm __volatile__("mov $" INIT_VALUE_STR ", %rax\n\t"                         \
-                   "mov $" INIT_VALUE_STR ", %rbx\n\t"                         \
-                   "mov $" INIT_VALUE_STR ", %rcx\n\t"                         \
-                   "mov $" INIT_VALUE_STR ", %rdx\n\t"                         \
-                   "mov $" INIT_VALUE_STR ", %rsi\n\t"                         \
-                   "mov $" INIT_VALUE_STR ", %rdi\n\t"                         \
-                   "mov $" INIT_VALUE_STR ", %r8\n\t"                          \
-                   "mov $" INIT_VALUE_STR ", %r9\n\t"                          \
-                   "mov $" INIT_VALUE_STR ", %r10\n\t"                         \
-                   "mov $" INIT_VALUE_STR ", %r11\n\t"                         \
-                   "mov $" INIT_VALUE_STR ", %r12\n\t"                         \
-                   "mov $" INIT_VALUE_STR ", %r13\n\t"                         \
-                   "mov $" INIT_VALUE_STR ", %r14\n\t"                         \
-                   "mov $" INIT_VALUE_STR ", %r15\n\t")
+ALWAYS_INLINE void initialize_memory() {
+  for (long *p = (long *)INIT_VALUE; p < (long *)(INIT_VALUE + PAGE_SIZE);
+       p++) {
+    *p = INIT_VALUE;
+  }
+}
 
-/**
- * This function contains code to be copied to the end of the test block.
- * The function tail itself is never called, but two symbols `tail_start`
- * and `tail_end` denotes the start and end of the tail code.
- */
-void tail() {
-  asm __volatile__(".global tail_start\n\t"
-                   "tail_start:");
+ALWAYS_INLINE void initialize_registers() {
+#ifdef __x86_64__
+  /* Clear flags */
+  asm __volatile__("xor %rax, %rax\n\t"
+                   "sahf");
 
-  /* Stop performance counters */
-  int perf_fd = *(int *)(AUX_MEM_ADDR + PERF_FD_OFFSET);
-  disable_pmu(perf_fd);
-  /* Store last performance counter values */
-  uint64_t values[3];
-  uint64_t count;
-  read(perf_fd, values, sizeof(values));
-  count = values[0];
-  *(uint64_t *)(AUX_MEM_ADDR + CYC_COUNT_OFFSET) = count;
+  /* Initialize registers */
+  asm __volatile__("mov $" INIT_VALUE_STR ", %rax\n\t"
+                   "mov $" INIT_VALUE_STR ", %rbx\n\t"
+                   "mov $" INIT_VALUE_STR ", %rcx\n\t"
+                   "mov $" INIT_VALUE_STR ", %rdx\n\t"
+                   "mov $" INIT_VALUE_STR ", %rsi\n\t"
+                   "mov $" INIT_VALUE_STR ", %rdi\n\t"
+                   "mov $" INIT_VALUE_STR ", %r8\n\t"
+                   "mov $" INIT_VALUE_STR ", %r9\n\t"
+                   "mov $" INIT_VALUE_STR ", %r10\n\t"
+                   "mov $" INIT_VALUE_STR ", %r11\n\t"
+                   "mov $" INIT_VALUE_STR ", %r12\n\t"
+                   "mov $" INIT_VALUE_STR ", %r13\n\t"
+                   "mov $" INIT_VALUE_STR ", %r14\n\t"
+                   "mov $" INIT_VALUE_STR ", %r15\n\t");
 
-  asm __volatile(".global tail_end\n\t"
-                 "tail_end:");
+  /* Move rbp, rsp to middle of page */
+  asm __volatile__("mov %rax, %rbp\n\t"
+                   "add $2048, %rax\n\t"
+                   "mov %rbp, %rsp");
+#endif
 }
 
 void runtest() {
+  asm __volatile__("jmp runtest_start");
+
+  asm __volatile__(".global tail_start\n\ttail_start:");
+  {
+    /* Move stack back */
+    asm __volatile__("mov $" STACK_PAGE_ADDR_STR ", %rbp\n\t"
+                     "add $2048, %rbp");
+
+    /* Stop performance counters */
+    int perf_fd = *(int *)(AUX_MEM_ADDR + PERF_FD_OFFSET);
+    disable_pmu(perf_fd);
+    /* Store last performance counter values */
+    uint64_t values[3];
+    uint64_t count;
+    read(perf_fd, values, sizeof(values));
+    count = values[0];
+    *(uint64_t *)(AUX_MEM_ADDR + CYC_COUNT_OFFSET) = count;
+  }
+  asm __volatile__(".global tail_end\n\ttail_end:");
+
+  asm __volatile__(".global map_and_restart\n\t map_and_restart:");
+  {
+    asm __volatile__("mov $" STACK_PAGE_ADDR_STR ", %rbp\n\t"
+                     "add $" HALF_PAGE_STR ", %rbp");
+
+    void *addr;
+    asm __volatile__("mov %%rdi, %0" : "=rm"(addr));
+    mmap(get_page_start(addr), PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED,
+         SHM_FD, 0);
+    /* Stop performance counters */
+    int perf_fd = *(int *)(AUX_MEM_ADDR + PERF_FD_OFFSET);
+    disable_pmu(perf_fd);
+
+    asm __volatile__("jmp test_start");
+  }
+
+  asm __volatile__(".global runtest_start\n\t runtest_start:");
   kill(getpid(), SIGSTOP);
 
   /* Unmap pages */
@@ -53,25 +87,26 @@ void runtest() {
   void *test_page_end = *(void **)(AUX_MEM_ADDR + TEST_PAGE_END_OFFSET);
   munmap(test_page_end, (size_t)AUX_MEM_ADDR - (size_t)test_page_end);
 
-  asm __volatile__(".global restart_point\n\t"
-                   "restart_point:\n\t");
+  /* Map memory for test block */
+  mmap((void *)INIT_VALUE, PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED,
+       SHM_FD, 0);
 
-  asm __volatile__(".global test_start\n\t"
-                   "test_start:\n\t");
+  asm __volatile__(".global test_start\n\t test_start:\n\t");
 
   if (*(uint64_t *)(AUX_MEM_ADDR + ITERATIONS_OFFSET) == 0) {
     kill(getpid(), SIGSTOP);
   }
   *(uint64_t *)(AUX_MEM_ADDR + ITERATIONS_OFFSET) -= 1;
 
+  initialize_memory();
+
   /* Start performance counters */
   int perf_fd = *(int *)(AUX_MEM_ADDR + PERF_FD_OFFSET);
   enable_pmu(perf_fd);
 
   /* Initialize registers */
-  INITIALIZE_REGISTERS();
-  asm __volatile__(".global test_block\n\t"
-                   "test_block:\n\t");
+  initialize_registers();
+  asm __volatile__(".global test_block\n\t test_block:\n\t");
   /* INSERT HERE: Stop performance counters */
   /* INSERT HERE: Jump back to test_start */
 }

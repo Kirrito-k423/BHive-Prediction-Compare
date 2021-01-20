@@ -3,6 +3,9 @@
 
 /* Address of page to be used for child stack. */
 #define AUX_MEM_ADDR (void *)0x0000700000000000
+#define AUX_MEM_ADDR_STR "0x0000700000000000"
+#define STACK_PAGE_ADDR (void *)0x0000700000001000
+#define STACK_PAGE_ADDR_STR "0x0000700000001000"
 
 #define ITERATIONS 2
 
@@ -13,7 +16,7 @@
 /* Size of shared memory. First page will be mapped to child virtual address
  * pages. Second page mapped to child stack page.
  */
-#define SHARED_MEM_SIZE 2 * PAGE_SIZE
+#define SHARED_MEM_SIZE 3 * PAGE_SIZE
 
 #define CYC_COUNT_OFFSET 0
 #define PERF_FD_OFFSET 8
