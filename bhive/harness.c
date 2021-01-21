@@ -229,12 +229,14 @@ int measure(char *code_to_test, unsigned long code_size,
 
       siginfo_t sinfo;
       ptrace(PTRACE_GETSIGINFO, child, 0, &sinfo);
-
       if (sinfo.si_signo == SIGSEGV) {
         printf("[PARENT] Child segfaulted at address %p. Mapping and "
                "restarting...\n",
                sinfo.si_addr);
-        move_child_to_map_and_restart(child, sinfo.si_addr);
+        ret = move_child_to_map_and_restart(child, sinfo.si_addr);
+        if (ret == -1) {
+          perror("[PARENT, ERR] Error moving child to map_and_restart");
+        }
         continue;
       }
       struct user_regs_struct regs;
