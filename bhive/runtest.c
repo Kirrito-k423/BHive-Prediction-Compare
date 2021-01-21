@@ -54,12 +54,21 @@ void runtest() {
     /* Stop performance counters */
     int perf_fd = *(int *)(AUX_MEM_ADDR + PERF_FD_OFFSET);
     disable_pmu(perf_fd);
-    /* Store last performance counter values */
-    uint64_t values[3];
-    uint64_t count;
-    read(perf_fd, values, sizeof(values));
-    count = values[0];
-    *(uint64_t *)(AUX_MEM_ADDR + CYC_COUNT_OFFSET) = count;
+    /* Store performance counter value if smaller than last one */
+    struct values {
+      uint64_t value;
+      uint64_t time_enabled;
+      uint64_t time_running;
+      uint64_t id;
+    } values;
+    read(perf_fd, &values, sizeof(values));
+    uint64_t prev_value = *(uint64_t *)(AUX_MEM_ADDR + CYC_COUNT_OFFSET);
+    uint64_t new_value = values.value;
+    if (prev_value != 0 && prev_value < new_value) {
+      new_value = prev_value;
+    }
+    *(uint64_t *)(AUX_MEM_ADDR + CYC_COUNT_OFFSET) = new_value;
+    *(uint64_t *)(AUX_MEM_ADDR + ITERATIONS_OFFSET) -= 1;
   }
   asm __volatile__(".global tail_end\n\ttail_end:");
 
@@ -96,7 +105,6 @@ void runtest() {
   if (*(uint64_t *)(AUX_MEM_ADDR + ITERATIONS_OFFSET) == 0) {
     kill(getpid(), SIGSTOP);
   }
-  *(uint64_t *)(AUX_MEM_ADDR + ITERATIONS_OFFSET) -= 1;
 
   initialize_memory();
 
