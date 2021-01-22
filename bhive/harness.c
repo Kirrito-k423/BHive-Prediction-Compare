@@ -1,6 +1,8 @@
 #define _GNU_SOURCE
 #include <errno.h>
-#include <fcntl.h> /* for O_RDWR, O_CREAT */
+#include <fcntl.h>     /* for O_RDWR, O_CREAT */
+#include <linux/elf.h> /* for NT_PRSTATUS */
+#include <sched.h>     /* for pinning child process */
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>   /* for memset */
@@ -12,8 +14,6 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-#include <sched.h> /* for pinning child process */
-
 #include <perfmon/pfmlib_perf_event.h>
 
 #include "common.h"
@@ -23,12 +23,22 @@
 static int read_child_regs(pid_t child, struct user_regs_struct *regs) {
 #ifdef __x86_64__
   return ptrace(PTRACE_GETREGS, child, NULL, regs);
+#else
+  struct iovec iov;
+  iov.iov_base = &regs;
+  iov.iov_len = sizeof(regs);
+  return ptrace(PTRACE_GETREGSET, child, NT_PRSTATUS, &iov);
 #endif
 }
 
 static int set_child_regs(pid_t child, struct user_regs_struct *regs) {
 #ifdef __x86_64__
   return ptrace(PTRACE_SETREGS, child, NULL, regs);
+#else
+  struct iovec iov;
+  iov.iov_base = &regs;
+  iov.iov_len = sizeof(regs);
+  return ptrace(PTRACE_GETREGSET, child, NT_PRSTATUS, &iov);
 #endif
 }
 
@@ -93,6 +103,58 @@ static int move_child_stack(pid_t child, void *stack_base_addr,
     return -3;
   }
   return 0;
+#elif __aarch64__
+  /*
+   * ARM64 stack grows downward so base pointer (r29) is at higher address than
+   * stack pointer (sp).
+   */
+  struct user_regs_struct regs;
+  int ret = read_child_regs(child, &regs);
+  if (ret == -1) {
+    return -1;
+  }
+  long *ori_bp = (long *)regs.regs[29];
+  long *ori_sp = (long *)regs.sp;
+  unsigned long long stack_size = regs.regs[29] - regs.sp;
+
+  /* Copy stack values */
+  long *new_bp = (long *)stack_base_addr;
+  errno = 0;
+  for (long *p = ori_bp, *new_p = new_bp; p > ori_sp; p--, new_p--) {
+    long word = ptrace(PTRACE_PEEKDATA, child, p, NULL);
+    ptrace(PTRACE_POKEDATA, child, new_p, word);
+    long new_word = ptrace(PTRACE_PEEKDATA, child, new_p, NULL);
+  }
+  if (errno != 0) {
+    return -2;
+  }
+
+  /* Sanity check */
+  for (int i = 0; i < stack_size / sizeof(long); i++) {
+    long *ori_p = ori_bp - i;
+    long *new_p = (long *)stack_base_addr - i;
+    long ori_word = ptrace(PTRACE_PEEKDATA, child, ori_p, NULL);
+    long new_word = ptrace(PTRACE_PEEKDATA, child, new_p, NULL);
+    long new_word_sh = *((long *)(child_stack + PAGE_SIZE / 2) - i);
+    if (ori_word != new_word) {
+      printf("[BUG] Something is wrong with stack copy. ori: %ld, new: %ld\n",
+             ori_word, new_word);
+    }
+    if (ori_word != new_word_sh) {
+      printf("[BUG] Something is wrong with stack copy. ori: %ld, shared mem: "
+             "%ld\n",
+             ori_word, new_word_sh);
+    }
+  }
+
+  /* Move stack */
+  regs.regs[29] = (unsigned long long)new_bp;
+  regs.sp = regs.regs[29] - stack_size;
+  ret = set_child_regs(child, &regs);
+  if (ret == -1) {
+    return -3;
+  }
+  return 0;
 #endif
 }
 
@@ -105,6 +167,9 @@ static int move_child_to_map_and_restart(pid_t child, void *fault_addr) {
 #ifdef __x86_64__
   regs.rip = (unsigned long long)map_and_restart;
   regs.rdi = (unsigned long long)fault_addr; // Fault address passed to rdi
+#elif __aarch64__
+  regs.pc = (unsigned long long)map_and_restart;
+  regs.regs[0] = (unsigned long long)fault_addr;
 #endif
   ret = set_child_regs(child, &regs);
   if (ret == -1) {
@@ -119,7 +184,7 @@ static int move_child_to_map_and_restart(pid_t child, void *fault_addr) {
 
 static size_t insert_jump_to_test_start(void *addr) {
 #ifdef __x86_64__
-  *(int *)addr = 0xe9;
+  *(char *)addr = 0xe9;
   *(int *)(addr + 1) = (long int)test_start - (long int)addr - SIZE_OF_REL_JUMP;
   return SIZE_OF_REL_JUMP;
 #endif
@@ -181,12 +246,6 @@ int measure(char *code_to_test, unsigned long code_size,
       return -1;
     }
 
-    /* Initialize child test page */
-    for (uint64_t *p = child_mem; p < (uint64_t *)(child_mem + PAGE_SIZE);
-         p++) {
-      *p = INIT_VALUE;
-    }
-
     /*
      * Wait for child. When child stops execution using kill(getpid(), SIGSTOP),
      * it is already in runtest.c::runtest().
@@ -197,12 +256,20 @@ int measure(char *code_to_test, unsigned long code_size,
       kill(child, SIGKILL);
       return -1;
     }
+    printf("done\n");
 
     if (!WIFSTOPPED(child_stat)) {
+      printf("hm\n");
       printf("[PARENT, ERR] Child not stopped by SIGSTOP.\n");
       kill(child, SIGKILL);
       return -1;
     }
+    siginfo_t sinfo;
+    ptrace(PTRACE_GETSIGINFO, child, 0, &sinfo);
+    printf("si_code: %d\n", sinfo.si_code);
+    printf("Errno: %d\n", sinfo.si_errno);
+    printf("Signo: %d\n", sinfo.si_signo);
+    printf("Addr: %p\n", sinfo.si_addr);
 
     /* Move child stack */
     ret = move_child_stack(child, STACK_PAGE_ADDR + PAGE_SIZE / 2, child_stack);
@@ -254,6 +321,13 @@ int measure(char *code_to_test, unsigned long code_size,
   } else { /* Child program */
     int ret;
 
+    /* Let parent trace this child */
+    ret = ptrace(PTRACE_TRACEME, 0, NULL, NULL);
+    if (ret == -1) {
+      perror("[CHILD, ERR] PTRACE_TRACEME error");
+      exit(EXIT_FAILURE);
+    }
+
     /* Copy test block and tail */
     void *runtest_page_start = get_page_start(runtest);
     unsigned long unrolled_block_size = code_size * unroll_factor;
@@ -272,9 +346,12 @@ int measure(char *code_to_test, unsigned long code_size,
       memcpy(block_ptr, code_to_test, code_size);
       block_ptr += code_size;
     }
-
-    memcpy(block_ptr, tail_start, tail_end - tail_start);
-    block_ptr += tail_end - tail_start;
+    void *pbreak = sbrk(0);
+    printf("block_ptr: %p; tail_size: %lu; program break: %p; diff: %ld\n",
+           block_ptr, tail_size, pbreak,
+           (ulong)pbreak - (ulong)block_ptr - tail_size);
+    memcpy(block_ptr, tail_start, tail_size);
+    block_ptr += tail_size;
     block_ptr += insert_jump_to_test_start(block_ptr);
 
     mprotect(runtest_page_start, runtest_page_end - runtest_page_start,
@@ -282,7 +359,7 @@ int measure(char *code_to_test, unsigned long code_size,
     if (ret == -1) {
       perror("[CHILD] Error protecting test code");
     }
-    printf("[CHILD] Test block and tail copied.\n");
+    printf("\n[CHILD] Test block and tail copied.\n");
 
     /* Allocate aux. memory for use after unmapping.
      *
@@ -330,13 +407,6 @@ int measure(char *code_to_test, unsigned long code_size,
     sched_setaffinity(0, sizeof(cpu_set_t), &cpu_set);
     setpriority(PRIO_PROCESS, 0, 0);
     printf("[CHILD] Process pinned\n");
-
-    /* Let parent trace this child */
-    ret = ptrace(PTRACE_TRACEME, 0, NULL, NULL);
-    if (ret == -1) {
-      perror("[CHILD, ERR] PTRACE_TRACEME error");
-      exit(EXIT_FAILURE);
-    }
 
     /* Save parameters */
     *(uint64_t *)(aux_addr + ITERATIONS_OFFSET) = ITERATIONS;
