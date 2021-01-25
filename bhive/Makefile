@@ -1,6 +1,6 @@
 CC := gcc
 
-CFLAGS := -fno-omit-frame-pointers
+CFLAGS := -fno-omit-frame-pointer
 
 main: main.o harness.o runtest.o
 	$(CC) -o main main.o harness.o runtest.o -lrt -lpfm
