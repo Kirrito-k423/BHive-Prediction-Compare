@@ -155,6 +155,9 @@ static int move_child_stack(pid_t child, void *stack_base_addr,
     return -3;
   }
   return 0;
+#else
+#pragma GCC error                                                              \
+    "move_child_stack (in harness.c) is not implemented for this architecture"
 #endif
 }
 
@@ -170,6 +173,10 @@ static int move_child_to_map_and_restart(pid_t child, void *fault_addr) {
 #elif __aarch64__
   regs.pc = (unsigned long long)map_and_restart;
   regs.regs[0] = (unsigned long long)fault_addr;
+#else
+#pragma GCC error                                                              \
+    "move_child_to_map_and_restart (in harness.c) not implemented for this "   \
+    "architecture"
 #endif
   ret = set_child_regs(child, &regs);
   if (ret == -1) {
@@ -187,6 +194,10 @@ static size_t insert_jump_to_test_start(void *addr) {
   *(char *)addr = 0xe9;
   *(int *)(addr + 1) = (long int)test_start - (long int)addr - SIZE_OF_REL_JUMP;
   return SIZE_OF_REL_JUMP;
+#else
+#pragma GCC error                                                              \
+    "insert_jump_to_test_start (in harness.c) not implemented for this "       \
+    "architecture"
 #endif
 }
 
