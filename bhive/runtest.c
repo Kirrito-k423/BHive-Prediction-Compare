@@ -39,17 +39,75 @@ ALWAYS_INLINE void initialize_registers() {
   asm __volatile__("mov %rax, %rbp\n\t"
                    "add $2048, %rax\n\t"
                    "mov %rbp, %rsp");
+#elif __aarch64__
+  /* Clear flags */
+  asm __volatile__("msr nzcv, xzr");
+
+  /* Initialize registers */
+  long init_value = INIT_VALUE;
+  asm __volatile__("ldr x0, %0\n\t"
+                   "ldr x1, %0\n\t"
+                   "ldr x2, %0\n\t"
+                   "ldr x3, %0\n\t"
+                   "ldr x4, %0\n\t"
+                   "ldr x5, %0\n\t"
+                   "ldr x6, %0\n\t"
+                   "ldr x7, %0\n\t"
+                   "ldr x8, %0\n\t"
+                   "ldr x9, %0\n\t"
+                   "ldr x10, %0\n\t"
+                   "ldr x11, %0\n\t"
+                   "ldr x12, %0\n\t"
+                   "ldr x13, %0\n\t"
+                   "ldr x14, %0\n\t"
+                   "ldr x15, %0\n\t"
+                   "ldr x16, %0\n\t"
+                   "ldr x17, %0\n\t"
+                   "ldr x18, %0\n\t"
+                   "ldr x19, %0\n\t"
+                   "ldr x20, %0\n\t"
+                   "ldr x21, %0\n\t"
+                   "ldr x22, %0\n\t"
+                   "ldr x23, %0\n\t"
+                   "ldr x24, %0\n\t"
+                   "ldr x25, %0\n\t"
+                   "ldr x26, %0\n\t"
+                   "ldr x27, %0\n\t"
+                   "ldr x28, %0\n\t"
+                   "ldr x29, %0\n\t"
+                   "ldr x30, %0\n\t"
+                   : /* No output */
+                   : "m"(init_value));
+
+  /* Move stack to middle of page */
+  asm __volatile__("mov sp, x0\n\t"
+                   "add sp, sp, #" HALF_PAGE_STR);
+#else
+#pragma GCC error "initialize_registers not implemented for this architecture"
+#endif
+}
+
+ALWAYS_INLINE void recover_stack() {
+#ifdef __x86_64__
+  asm __volatile__("mov $" STACK_PAGE_ADDR_STR ", %rbp\n\t"
+                   "add $2048, %rbp");
+#else
+#pragma GCC error "recover_stack not implemented for this architecture"
 #endif
 }
 
 void runtest() {
+#ifdef __x86_64__
   asm __volatile__("jmp runtest_start");
+#elif __aarch64__
+  asm __volatile__("b runtest_start");
+#else
+#pragma GCC error "runtest not implemented for this architecture"
+#endif
 
   asm __volatile__(".global tail_start\n\ttail_start:");
   {
-    /* Move stack back */
-    asm __volatile__("mov $" STACK_PAGE_ADDR_STR ", %rbp\n\t"
-                     "add $2048, %rbp");
+    recover_stack();
 
     /* Stop performance counters */
     int perf_fd = *(int *)(AUX_MEM_ADDR + PERF_FD_OFFSET);
@@ -74,18 +132,30 @@ void runtest() {
 
   asm __volatile__(".global map_and_restart\n\t map_and_restart:");
   {
-    asm __volatile__("mov $" STACK_PAGE_ADDR_STR ", %rbp\n\t"
-                     "add $" HALF_PAGE_STR ", %rbp");
+    recover_stack();
 
     void *addr;
+#ifdef __x86_64__
     asm __volatile__("mov %%rdi, %0" : "=rm"(addr));
+#elif __aarch64__
+    asm __volatile__("mov x0, %0" : "=rm"(addr));
+#else
+#pragma GCC error "map_and_restart not implemented for this architecture"
+#endif
+
     mmap(get_page_start(addr), PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED,
          SHM_FD, 0);
     /* Stop performance counters */
     int perf_fd = *(int *)(AUX_MEM_ADDR + PERF_FD_OFFSET);
     disable_pmu(perf_fd);
 
+#ifdef __x86_64__
     asm __volatile__("jmp test_start");
+#elif __aarch64__
+    asm __volatile__("b test_start");
+#else
+#pragma GCC error "map_and_restart not implemented for this architecture"
+#endif
   }
 
   asm __volatile__(".global runtest_start\n\t runtest_start:");
