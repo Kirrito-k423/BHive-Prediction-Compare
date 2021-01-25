@@ -134,6 +134,19 @@ void runtest() {
   }
   asm __volatile__(".global tail_end\n\ttail_end:");
 
+  asm __volatile__(".global mem_access_check\n\tmem_access_check:");
+  {
+    recover_stack();
+
+    void *aux_start = AUX_MEM_ADDR;
+    void *stack_start = *(void **)(AUX_MEM_ADDR + STACK_SP_OFFSET);
+#ifdef __x86_64__
+/* TODO: mprotect stack and aux. mem then jump to test_block */
+#else
+#pragma GCC error "mem_access_check not implemented for this architecture"
+#endif
+  }
+
   asm __volatile__(".global map_and_restart\n\t map_and_restart:");
   {
     recover_stack();
