@@ -6,11 +6,13 @@
 #define _TESTBLOCK_REDEFINES_H_
 
 /*******************************************************************************
- * Redefined constants.
+ * Redefine constants.
  */
-#ifdef __x86_64__
 
 #define MAP_SHARED 0x01
+
+#define PROT_READ 0x1
+#define PROT_WRITE 0x2
 
 #define PAGE_SHIFT 12
 #define PAGE_SIZE (1u << PAGE_SHIFT)
@@ -20,10 +22,9 @@
 #define PERF_EVENT_IOC_ENABLE 9216
 #define PERF_EVENT_IOC_RESET 9219
 
-#define PROT_READ 0x1
-#define PROT_WRITE 0x2
-
 #define SIGSTOP 19
+
+#ifdef __x86_64__
 
 #define SYS_getpid 39
 #define SYS_ioctl 16
@@ -32,6 +33,22 @@
 #define SYS_munmap 11
 #define SYS_read 0
 #define SYS_write 1
+
+#elif __aarch64__
+
+#define SYS_getpid 172
+#define SYS_ioctl 29
+#define SYS_kill 129
+#define SYS_mmap 222
+#define SYS_munmap 215
+#define SYS_read 63
+#define SYS_write 64
+
+#else
+
+#pragma GCC error                                                              \
+    "SYS_* (in runtest_redefines.h) macros are not redefined for this "        \
+    "architecture"
 
 #endif
 
@@ -71,6 +88,24 @@ ALWAYS_INLINE long syscall(long number, void *param1, void *param2,
                    : "rmn"(number), "rmn"(param1), "rmn"(param2), "rmn"(param3),
                      "rmn"(param4), "rmn"(param5), "rmn"(param6));
   return ret;
+#elif __aarch64__
+  long ret = 0;
+  asm __volatile__("mov x8, %1\n\t"
+                   "mov x0, %2\n\t"
+                   "mov x1, %3\n\t"
+                   "mov x2, %4\n\t"
+                   "mov x3, %5\n\t"
+                   "mov x4, %6\n\t"
+                   "mov x5, %7\n\t"
+                   "svc #0\n\t"
+                   "mov %0, x0"
+                   : "=rm"(ret)
+                   : "rmn"(number), "rmn"(param1), "rmn"(param2), "rmn"(param3),
+                     "rmn"(param4), "rmn"(param5), "rmn"(param6));
+  return ret;
+#else
+#pragma GCC error                                                              \
+    "syscall (in runtest_redefines.h) is not implemented for this architecture"
 #endif
 }
 
