@@ -42,9 +42,7 @@
 
 #else
 
-#pragma GCC error                                                              \
-    "SYS_* (in runtest_redefines.h) macros are not redefined for this "        \
-    "architecture"
+#pragma GCC error "SYS_* macros are not redefined for this architecture"
 
 #endif
 
@@ -86,22 +84,21 @@ ALWAYS_INLINE long syscall(long number, void *param1, void *param2,
   return ret;
 #elif __aarch64__
   long ret = 0;
-  asm __volatile__("mov x8, %1\n\t"
-                   "mov x0, %2\n\t"
-                   "mov x1, %3\n\t"
-                   "mov x2, %4\n\t"
-                   "mov x3, %5\n\t"
-                   "mov x4, %6\n\t"
-                   "mov x5, %7\n\t"
+  asm __volatile__("ldr x8, %1\n\t"
+                   "ldr x0, %2\n\t"
+                   "ldr x1, %3\n\t"
+                   "ldr x2, %4\n\t"
+                   "ldr x3, %5\n\t"
+                   "ldr x4, %6\n\t"
+                   "ldr x5, %7\n\t"
                    "svc #0\n\t"
                    "mov %0, x0"
                    : "=rm"(ret)
-                   : "rmn"(number), "rmn"(param1), "rmn"(param2), "rmn"(param3),
-                     "rmn"(param4), "rmn"(param5), "rmn"(param6));
+                   : "mG"(number), "mG"(param1), "mG"(param2), "mG"(param3),
+                     "mG"(param4), "mG"(param5), "mG"(param6));
   return ret;
 #else
-#pragma GCC error                                                              \
-    "syscall (in runtest_redefines.h) is not implemented for this architecture"
+#pragma GCC error "syscall is not implemented for this architecture"
 #endif
 }
 
