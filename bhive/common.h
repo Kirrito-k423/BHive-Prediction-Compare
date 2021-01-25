@@ -14,6 +14,10 @@
 
 #define MAX_FAULTS 100
 
+#define PAGE_SHIFT 12
+#define PAGE_SIZE (1u << PAGE_SHIFT)
+#define HALF_PAGE_STR "2048"
+
 #define SHM_FD 42
 /* Size of shared memory. First page will be mapped to child virtual address
  * pages. Second page mapped to child stack page.
