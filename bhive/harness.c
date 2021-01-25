@@ -43,14 +43,11 @@ static int set_child_regs(pid_t child, struct user_regs_struct *regs) {
 }
 
 /**
- * Move child stack to stack_page_addr.
+ * Save child stack pointer and base pointer.
  *
  * @return 0 when successful. -1 if error while reading child registers.
- *         -2 if error copying stack values. -3 if error setting child
- *         registers. Errno set by syscall that produced the error.
  */
-static int move_child_stack(pid_t child, void *stack_base_addr,
-                            void *child_stack) {
+static int save_child_stack(pid_t child, void *child_aux_mem) {
 #ifdef __x86_64__
   /*
    * x86 stack grows downward so base pointer (rbp) is at higher address than
@@ -61,47 +58,8 @@ static int move_child_stack(pid_t child, void *stack_base_addr,
   if (ret == -1) {
     return -1;
   }
-  long *ori_bp = (long *)regs.rbp;
-  long *ori_sp = (long *)regs.rsp;
-  unsigned long long stack_size = regs.rbp - regs.rsp;
-
-  /* Copy stack values */
-  long *new_bp = (long *)stack_base_addr;
-  errno = 0;
-  for (long *p = ori_bp, *new_p = new_bp; p > ori_sp; p--, new_p--) {
-    long word = ptrace(PTRACE_PEEKDATA, child, p, NULL);
-    ptrace(PTRACE_POKEDATA, child, new_p, word);
-    long new_word = ptrace(PTRACE_PEEKDATA, child, new_p, NULL);
-  }
-  if (errno != 0) {
-    return -2;
-  }
-
-  /* Sanity check */
-  for (int i = 0; i < stack_size / sizeof(long); i++) {
-    long *ori_p = ori_bp - i;
-    long *new_p = (long *)stack_base_addr - i;
-    long ori_word = ptrace(PTRACE_PEEKDATA, child, ori_p, NULL);
-    long new_word = ptrace(PTRACE_PEEKDATA, child, new_p, NULL);
-    long new_word_sh = *((long *)(child_stack + PAGE_SIZE / 2) - i);
-    if (ori_word != new_word) {
-      printf("[BUG] Something is wrong with stack copy. ori: %ld, new: %ld\n",
-             ori_word, new_word);
-    }
-    if (ori_word != new_word_sh) {
-      printf("[BUG] Something is wrong with stack copy. ori: %ld, shared mem: "
-             "%ld\n",
-             ori_word, new_word_sh);
-    }
-  }
-
-  /* Move stack */
-  regs.rbp = (unsigned long long)new_bp;
-  regs.rsp = regs.rbp - stack_size;
-  ret = set_child_regs(child, &regs);
-  if (ret == -1) {
-    return -3;
-  }
+  *(unsigned long *)(child_aux_mem + STACK_BP_OFFSET) = regs.rbp;
+  *(unsigned long *)(child_aux_mem + STACK_SP_OFFSET) = regs.rsp;
   return 0;
 #elif __aarch64__
   /*
@@ -113,47 +71,8 @@ static int move_child_stack(pid_t child, void *stack_base_addr,
   if (ret == -1) {
     return -1;
   }
-  long *ori_bp = (long *)regs.regs[29];
-  long *ori_sp = (long *)regs.sp;
-  unsigned long long stack_size = regs.regs[29] - regs.sp;
-
-  /* Copy stack values */
-  long *new_bp = (long *)stack_base_addr;
-  errno = 0;
-  for (long *p = ori_bp, *new_p = new_bp; p > ori_sp; p--, new_p--) {
-    long word = ptrace(PTRACE_PEEKDATA, child, p, NULL);
-    ptrace(PTRACE_POKEDATA, child, new_p, word);
-    long new_word = ptrace(PTRACE_PEEKDATA, child, new_p, NULL);
-  }
-  if (errno != 0) {
-    return -2;
-  }
-
-  /* Sanity check */
-  for (int i = 0; i < stack_size / sizeof(long); i++) {
-    long *ori_p = ori_bp - i;
-    long *new_p = (long *)stack_base_addr - i;
-    long ori_word = ptrace(PTRACE_PEEKDATA, child, ori_p, NULL);
-    long new_word = ptrace(PTRACE_PEEKDATA, child, new_p, NULL);
-    long new_word_sh = *((long *)(child_stack + PAGE_SIZE / 2) - i);
-    if (ori_word != new_word) {
-      printf("[BUG] Something is wrong with stack copy. ori: %ld, new: %ld\n",
-             ori_word, new_word);
-    }
-    if (ori_word != new_word_sh) {
-      printf("[BUG] Something is wrong with stack copy. ori: %ld, shared mem: "
-             "%ld\n",
-             ori_word, new_word_sh);
-    }
-  }
-
-  /* Move stack */
-  regs.regs[29] = (unsigned long long)new_bp;
-  regs.sp = regs.regs[29] - stack_size;
-  ret = set_child_regs(child, &regs);
-  if (ret == -1) {
-    return -3;
-  }
+  *(unsigned long *)(child_aux_mem + STACK_BP_OFFSET) = regs.regs[29];
+  *(unsigned long *)(child_aux_mem + STACK_SP_OFFSET) = regs.sp;
   return 0;
 #else
 #pragma GCC error                                                              \
@@ -252,14 +171,6 @@ int measure(char *code_to_test, unsigned long code_size,
       kill(child, SIGKILL);
       return -1;
     }
-    void *child_stack = mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE,
-                             MAP_SHARED, SHM_FD, 2 * PAGE_SIZE);
-    if (child_stack == (void *)-1) {
-      perror(
-          "[PARENT, ERR] Error mapping child stack portion of shared memory");
-      kill(child, SIGKILL);
-      return -1;
-    }
 
     /*
      * Wait for child. When child stops execution using kill(getpid(), SIGSTOP),
@@ -271,7 +182,6 @@ int measure(char *code_to_test, unsigned long code_size,
       kill(child, SIGKILL);
       return -1;
     }
-    printf("done\n");
 
     if (!WIFSTOPPED(child_stat)) {
       printf("hm\n");
@@ -279,27 +189,16 @@ int measure(char *code_to_test, unsigned long code_size,
       kill(child, SIGKILL);
       return -1;
     }
-    siginfo_t sinfo;
-    ptrace(PTRACE_GETSIGINFO, child, 0, &sinfo);
-    printf("si_code: %d\n", sinfo.si_code);
-    printf("Errno: %d\n", sinfo.si_errno);
-    printf("Signo: %d\n", sinfo.si_signo);
-    printf("Addr: %p\n", sinfo.si_addr);
 
     /* Move child stack */
-    ret = move_child_stack(child, STACK_PAGE_ADDR + PAGE_SIZE / 2, child_stack);
+    ret = save_child_stack(child, child_aux);
     if (ret == -1) {
-      perror("[PARENT, ERR] Error reading child registers while moving stack");
-    } else if (ret == -2) {
-      perror("[PARENT, ERR] Error copying stack values while moving stack");
-    } else if (ret == -3) {
-      perror("[PARENT, ERR] Error setting child registers while moving stack");
-    }
-    if (ret != 0) {
+      perror("[PARENT, ERR] Error reading child registers while saving stack");
       kill(child, SIGKILL);
       return -1;
     }
-    printf("[PARENT] Child stack moved.\n");
+    void *child_stack_sp = *(void **)(child_aux + STACK_SP_OFFSET);
+    printf("[PARENT] Child stack at %p saved.\n", child_stack_sp);
 
     for (int i = 0; i < MAX_FAULTS; i++) {
       ptrace(PTRACE_CONT, child, 0, 0);
@@ -360,9 +259,6 @@ int measure(char *code_to_test, unsigned long code_size,
       block_ptr += code_size;
     }
     void *pbreak = sbrk(0);
-    printf("block_ptr: %p; tail_size: %lu; program break: %p; diff: %ld\n",
-           block_ptr, tail_size, pbreak,
-           (ulong)pbreak - (ulong)block_ptr - tail_size);
     memcpy(block_ptr, tail_start, tail_size);
     block_ptr += tail_size;
     block_ptr += insert_jump_to_test_start(block_ptr);
@@ -379,12 +275,12 @@ int measure(char *code_to_test, unsigned long code_size,
      * A new stack for child will be setup at the end of the aux. memory.
      * Counter values will be stored at the beginning of the aux. memory.
      */
-    void *aux_addr = mmap(AUX_MEM_ADDR, 2 * PAGE_SIZE, PROT_READ | PROT_WRITE,
+    void *aux_addr = mmap(AUX_MEM_ADDR, PAGE_SIZE, PROT_READ | PROT_WRITE,
                           MAP_SHARED, SHM_FD, PAGE_SIZE);
     if (aux_addr == (void *)-1) {
-      perror("[CHILD, ERR] Error mapping memory for stack");
+      perror("[CHILD, ERR] Error mapping memory for aux. memory");
     }
-    printf("[CHILD] Stack page mapped at %p.\n", aux_addr);
+    printf("[CHILD] Aux. page mapped at %p.\n", aux_addr);
 
     /* Get perf encoding */
     pfm_initialize();

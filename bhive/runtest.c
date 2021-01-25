@@ -89,8 +89,12 @@ ALWAYS_INLINE void initialize_registers() {
 
 ALWAYS_INLINE void recover_stack() {
 #ifdef __x86_64__
-  asm __volatile__("mov $" STACK_PAGE_ADDR_STR ", %rbp\n\t"
-                   "add $2048, %rbp");
+  asm __volatile__("mov $" AUX_MEM_ADDR_STR ", %rbp\n\t"
+                   "mov %rbp, %rsp\n\t"
+                   "add $" STACK_BP_OFFSET_STR ", %rbp\n\t"
+                   "add $" STACK_SP_OFFSET_STR ", %rsp\n\t"
+                   "mov (%rbp), %rbp\n\t"
+                   "mov (%rsp), %rsp");
 #else
 #pragma GCC error "recover_stack not implemented for this architecture"
 #endif
@@ -161,10 +165,22 @@ void runtest() {
   asm __volatile__(".global runtest_start\n\t runtest_start:");
   kill(getpid(), SIGSTOP);
 
-  /* Unmap pages */
-  munmap((void *)0, (size_t)get_page_start(runtest));
+  /* Unmap pages except this one, the stack, and aux. memory.
+   * Assumption:
+   *  - stack is placed at top of user address space and grows downward.
+   *  - no overlap between pages containing test code, stack, and aux. mem.
+   */
+  void *stack_sp = *(void **)(AUX_MEM_ADDR + STACK_SP_OFFSET);
+  void *stack_page_start = get_page_start(stack_sp);
+  void *stack_bp = *(void **)(AUX_MEM_ADDR + STACK_BP_OFFSET);
+  void *stack_page_end = get_page_end(stack_bp);
   void *test_page_end = *(void **)(AUX_MEM_ADDR + TEST_PAGE_END_OFFSET);
-  munmap(test_page_end, (size_t)AUX_MEM_ADDR - (size_t)test_page_end);
+  void *test_page_start = get_page_start(runtest);
+  void *aux_page_start = AUX_MEM_ADDR;
+  void *aux_page_end = AUX_MEM_ADDR + PAGE_SIZE;
+  munmap((void *)0, (size_t)test_page_start);
+  munmap(test_page_end, (size_t)(aux_page_start - test_page_end));
+  munmap(aux_page_end, (size_t)(stack_page_start - aux_page_end));
 
   /* Map memory for test block */
   mmap((void *)INIT_VALUE, PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED,
