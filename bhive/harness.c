@@ -10,7 +10,7 @@
 #include <sys/ptrace.h>
 #include <sys/resource.h> /* for PRIO_PROCESS */
 #include <sys/signal.h>   /* for siginfo_t */
-#include <sys/user.h>     /* for user_regs_struct, PAGE_SIZE, PAGE_SHIFT */
+#include <sys/user.h>     /* for user_regs_struct */
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -175,8 +175,7 @@ static int move_child_to_map_and_restart(pid_t child, void *fault_addr) {
   regs.regs[0] = (unsigned long long)fault_addr;
 #else
 #pragma GCC error                                                              \
-    "move_child_to_map_and_restart (in harness.c) not implemented for this "   \
-    "architecture"
+    "move_child_to_map_and_restart not implemented for this architecture"
 #endif
   ret = set_child_regs(child, &regs);
   if (ret == -1) {
@@ -187,6 +186,8 @@ static int move_child_to_map_and_restart(pid_t child, void *fault_addr) {
 
 #ifdef __x86_64__
 #define SIZE_OF_REL_JUMP 5
+#elif __aarch64__
+#define SIZE_OF_REL_JUMP 4
 #endif
 
 static size_t insert_jump_to_test_start(void *addr) {
@@ -194,10 +195,13 @@ static size_t insert_jump_to_test_start(void *addr) {
   *(char *)addr = 0xe9;
   *(int *)(addr + 1) = (long int)test_start - (long int)addr - SIZE_OF_REL_JUMP;
   return SIZE_OF_REL_JUMP;
+#elif __aarch64__
+  *(char *)addr = 0x1;
+  *(char *)(addr + 1) = 0x4;
+  *(int *)(addr + 2) = (long int)test_start - (long int)addr - SIZE_OF_REL_JUMP;
 #else
 #pragma GCC error                                                              \
-    "insert_jump_to_test_start (in harness.c) not implemented for this "       \
-    "architecture"
+    "insert_jump_to_test_start not implemented for this architecture"
 #endif
 }
 
@@ -317,14 +321,12 @@ int measure(char *code_to_test, unsigned long code_size,
         }
         continue;
       }
-      struct user_regs_struct regs;
-      ptrace(PTRACE_GETREGS, child, 0, &regs);
       printf("Signo: %d\n", sinfo.si_signo);
       printf("Addr: %p\n", sinfo.si_addr);
-      printf("rip: %llx\n", regs.rip);
-      printf("rbp: %llx\n", regs.rbp);
       printf("core cyc: %lu\n", *(uint64_t *)(child_aux + CYC_COUNT_OFFSET));
-      break;
+      res->core_cyc = *(uint64_t *)(child_aux + CYC_COUNT_OFFSET);
+      kill(child, SIGKILL);
+      return 0;
     }
 
     kill(child, SIGKILL);
