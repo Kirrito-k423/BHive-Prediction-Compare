@@ -11,6 +11,7 @@
 
 #define MAP_SHARED 0x01
 
+#define PROT_NONE 0x0
 #define PROT_READ 0x1
 #define PROT_WRITE 0x2
 
@@ -26,6 +27,7 @@
 #define SYS_ioctl 16
 #define SYS_kill 62
 #define SYS_mmap 9
+#define SYS_mprotect 10
 #define SYS_munmap 11
 #define SYS_read 0
 #define SYS_write 1
