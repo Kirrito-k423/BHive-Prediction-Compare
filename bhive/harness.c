@@ -42,6 +42,21 @@ static int set_child_regs(pid_t child, struct user_regs_struct *regs) {
 #endif
 }
 
+static void *get_child_pc(pid_t child) {
+  struct user_regs_struct regs;
+  int ret = read_child_regs(child, &regs);
+  if (ret == -1) {
+    return (void *)-1;
+  }
+#ifdef __x86_64__
+  return (void *)regs.rip;
+#elif __aarch64__
+  return (void *)regs.pc;
+#else
+#pragma GCC error "get_child_pc not implemented for this architecture"
+#endif
+}
+
 /**
  * Save child stack pointer and base pointer.
  *
@@ -80,7 +95,8 @@ static int save_child_stack(pid_t child, void *child_aux_mem) {
 #endif
 }
 
-static int move_child_to_map_and_restart(pid_t child, void *fault_addr) {
+static int move_child_to_map_and_restart(pid_t child, void *fault_addr,
+                                         void *child_aux) {
   struct user_regs_struct regs;
   int ret = read_child_regs(child, &regs);
   if (ret == -1) {
@@ -88,10 +104,8 @@ static int move_child_to_map_and_restart(pid_t child, void *fault_addr) {
   }
 #ifdef __x86_64__
   regs.rip = (unsigned long long)map_and_restart;
-  regs.rdi = (unsigned long long)fault_addr; // Fault address passed to rdi
 #elif __aarch64__
   regs.pc = (unsigned long long)map_and_restart;
-  regs.regs[0] = (unsigned long long)fault_addr;
 #else
 #pragma GCC error                                                              \
     "move_child_to_map_and_restart not implemented for this architecture"
@@ -100,6 +114,7 @@ static int move_child_to_map_and_restart(pid_t child, void *fault_addr) {
   if (ret == -1) {
     return -1;
   }
+  *(void **)(child_aux + MAP_AND_RESTART_ADDR_OFFSET) = fault_addr;
   return ret;
 }
 
@@ -190,7 +205,7 @@ int measure(char *code_to_test, unsigned long code_size,
       return -1;
     }
 
-    /* Move child stack */
+    /* Save child stack */
     ret = save_child_stack(child, child_aux);
     if (ret == -1) {
       perror("[PARENT, ERR] Error reading child registers while saving stack");
@@ -214,7 +229,7 @@ int measure(char *code_to_test, unsigned long code_size,
         printf("[PARENT] Child segfaulted at address %p. Mapping and "
                "restarting...\n",
                sinfo.si_addr);
-        ret = move_child_to_map_and_restart(child, sinfo.si_addr);
+        ret = move_child_to_map_and_restart(child, sinfo.si_addr, child_aux);
         if (ret == -1) {
           perror("[PARENT, ERR] Error moving child to map_and_restart");
         }
@@ -227,6 +242,7 @@ int measure(char *code_to_test, unsigned long code_size,
       kill(child, SIGKILL);
       return 0;
     }
+    printf("[PARENT] Max faults reached. Giving up...\n");
 
     kill(child, SIGKILL);
     return -1;
