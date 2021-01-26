@@ -6,6 +6,10 @@
 #include "common.h"
 #include "runtest_redefines.h"
 
+#ifdef __x86_64__
+#define JUMP_TO_ASM_LABEL(l) asm __volatile__("jmp " #l)
+#endif
+
 ALWAYS_INLINE void initialize_memory() {
   for (long *p = (long *)INIT_VALUE; p < (long *)(INIT_VALUE + PAGE_SIZE);
        p++) {
@@ -20,20 +24,22 @@ ALWAYS_INLINE void initialize_registers() {
                    "sahf");
 
   /* Initialize registers */
-  asm __volatile__("mov $" INIT_VALUE_STR ", %rax\n\t"
-                   "mov $" INIT_VALUE_STR ", %rbx\n\t"
-                   "mov $" INIT_VALUE_STR ", %rcx\n\t"
-                   "mov $" INIT_VALUE_STR ", %rdx\n\t"
-                   "mov $" INIT_VALUE_STR ", %rsi\n\t"
-                   "mov $" INIT_VALUE_STR ", %rdi\n\t"
-                   "mov $" INIT_VALUE_STR ", %r8\n\t"
-                   "mov $" INIT_VALUE_STR ", %r9\n\t"
-                   "mov $" INIT_VALUE_STR ", %r10\n\t"
-                   "mov $" INIT_VALUE_STR ", %r11\n\t"
-                   "mov $" INIT_VALUE_STR ", %r12\n\t"
-                   "mov $" INIT_VALUE_STR ", %r13\n\t"
-                   "mov $" INIT_VALUE_STR ", %r14\n\t"
-                   "mov $" INIT_VALUE_STR ", %r15\n\t");
+  asm __volatile__("mov %[init_value], %%rax\n\t"
+                   "mov %[init_value], %%rbx\n\t"
+                   "mov %[init_value], %%rcx\n\t"
+                   "mov %[init_value], %%rdx\n\t"
+                   "mov %[init_value], %%rsi\n\t"
+                   "mov %[init_value], %%rdi\n\t"
+                   "mov %[init_value], %%r8\n\t"
+                   "mov %[init_value], %%r9\n\t"
+                   "mov %[init_value], %%r10\n\t"
+                   "mov %[init_value], %%r11\n\t"
+                   "mov %[init_value], %%r12\n\t"
+                   "mov %[init_value], %%r13\n\t"
+                   "mov %[init_value], %%r14\n\t"
+                   "mov %[init_value], %%r15\n\t"
+                   : /* No output */
+                   : [ init_value ] "n"(INIT_VALUE));
 
   /* Move rbp, rsp to middle of page */
   asm __volatile__("mov %rax, %rbp\n\t"
@@ -89,28 +95,80 @@ ALWAYS_INLINE void initialize_registers() {
 
 ALWAYS_INLINE void recover_stack() {
 #ifdef __x86_64__
-  asm __volatile__("mov $" AUX_MEM_ADDR_STR ", %rbp\n\t"
-                   "mov %rbp, %rsp\n\t"
-                   "add $" STACK_BP_OFFSET_STR ", %rbp\n\t"
-                   "add $" STACK_SP_OFFSET_STR ", %rsp\n\t"
-                   "mov (%rbp), %rbp\n\t"
-                   "mov (%rsp), %rsp");
+  asm __volatile__("mov %[aux_mem], %%rbp\n\t"
+                   "mov %%rbp, %%rsp\n\t"
+                   "add %[stack_bp_offset], %%rbp\n\t"
+                   "add %[stack_sp_offset], %%rsp\n\t"
+                   "mov (%%rbp), %%rbp\n\t"
+                   "mov (%%rsp), %%rsp"
+                   : /* No output */
+                   : [ aux_mem ] "n"(AUX_MEM_ADDR),
+                     [ stack_bp_offset ] "n"(STACK_BP_OFFSET),
+                     [ stack_sp_offset ] "n"(STACK_SP_OFFSET));
 #else
 #pragma GCC error "recover_stack not implemented for this architecture"
 #endif
 }
 
-void runtest() {
+ALWAYS_INLINE void protect_aux_stack() {
+  void *stack_start = *(void **)(AUX_MEM_ADDR + STACK_SP_OFFSET);
 #ifdef __x86_64__
-  asm __volatile__("jmp runtest_start");
-#elif __aarch64__
-  asm __volatile__("b runtest_start");
+  /* mprotect(aux_start, PAGE_SIZE, PROT_NONE) */
+  asm __volatile__("mov %0, %%rax\n\t"
+                   "mov %1, %%rdi\n\t"
+                   "mov %2, %%rsi\n\t"
+                   "mov %3, %%rdx\n\t"
+                   "syscall"
+                   : /* No output */
+                   : "n"(SYS_mprotect), "n"(AUX_MEM_ADDR), "n"(PAGE_SIZE),
+                     "n"(PROT_NONE));
+  /* mprotect(stack_start, PAGE_SIZE, PROT_NONE) */
+  asm __volatile__("mov %0, %%rax\n\t"
+                   "mov %1, %%rdi\n\t"
+                   "mov %2, %%rsi\n\t"
+                   "mov %3, %%rdx\n\t"
+                   "syscall"
+                   : /* No output */
+                   : "n"(SYS_mprotect), "rmn"(stack_start), "n"(PAGE_SIZE),
+                     "n"(PROT_NONE));
 #else
-#pragma GCC error "runtest not implemented for this architecture"
+#pragma GCC error "mem_access_check not implemented for this architecture"
 #endif
+}
+
+ALWAYS_INLINE void unprotect_aux_stack() {
+#ifdef __x86_64__
+  /* mprotect(aux_start, PAGE_SIZE, PROT_NONE) */
+  asm __volatile__("mov %0, %%rax\n\t"
+                   "mov %1, %%rdi\n\t"
+                   "mov %2, %%rsi\n\t"
+                   "mov %3, %%rdx\n\t"
+                   "syscall"
+                   : /* No output */
+                   : "n"(SYS_mprotect), "n"(AUX_MEM_ADDR), "n"(PAGE_SIZE),
+                     "n"(PROT_WRITE | PROT_READ));
+  /* mprotect(stack_start, PAGE_SIZE, PROT_NONE) */
+  asm __volatile__("mov %0, %%rax\n\t"
+                   "mov %1, %%rdi\n\t"
+                   "add %2, %%rdi\n\t"
+                   "mov (%%rdi), %%rdi\n\t"
+                   "mov %3, %%rsi\n\t"
+                   "mov %4, %%rdx\n\t"
+                   "syscall"
+                   : /* No output */
+                   : "n"(SYS_mprotect), "n"(AUX_MEM_ADDR), "n"(STACK_SP_OFFSET),
+                     "n"(PAGE_SIZE), "n"(PROT_WRITE | PROT_READ));
+#else
+#pragma GCC error "mem_access_check not implemented for this architecture"
+#endif
+}
+
+void runtest() {
+  JUMP_TO_ASM_LABEL(runtest_start);
 
   asm __volatile__(".global tail_start\n\ttail_start:");
   {
+    unprotect_aux_stack();
     recover_stack();
 
     /* Stop performance counters */
@@ -134,45 +192,19 @@ void runtest() {
   }
   asm __volatile__(".global tail_end\n\ttail_end:");
 
-  asm __volatile__(".global mem_access_check\n\tmem_access_check:");
-  {
-    recover_stack();
-
-    void *aux_start = AUX_MEM_ADDR;
-    void *stack_start = *(void **)(AUX_MEM_ADDR + STACK_SP_OFFSET);
-#ifdef __x86_64__
-/* TODO: mprotect stack and aux. mem then jump to test_block */
-#else
-#pragma GCC error "mem_access_check not implemented for this architecture"
-#endif
-  }
-
   asm __volatile__(".global map_and_restart\n\t map_and_restart:");
   {
+    unprotect_aux_stack();
     recover_stack();
 
-    void *addr;
-#ifdef __x86_64__
-    asm __volatile__("mov %%rdi, %0" : "=rm"(addr));
-#elif __aarch64__
-    asm __volatile__("mov x0, %0" : "=rm"(addr));
-#else
-#pragma GCC error "map_and_restart not implemented for this architecture"
-#endif
-
+    void *addr = *(void **)(AUX_MEM_ADDR + MAP_AND_RESTART_ADDR_OFFSET);
     mmap(get_page_start(addr), PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED,
          SHM_FD, 0);
     /* Stop performance counters */
     int perf_fd = *(int *)(AUX_MEM_ADDR + PERF_FD_OFFSET);
     disable_pmu(perf_fd);
 
-#ifdef __x86_64__
-    asm __volatile__("jmp test_start");
-#elif __aarch64__
-    asm __volatile__("b test_start");
-#else
-#pragma GCC error "map_and_restart not implemented for this architecture"
-#endif
+    JUMP_TO_ASM_LABEL(test_start);
   }
 
   asm __volatile__(".global runtest_start\n\t runtest_start:");
@@ -212,9 +244,12 @@ void runtest() {
   reset_pmu(perf_fd);
   enable_pmu(perf_fd);
 
-  /* Initialize registers */
+  protect_aux_stack();
+
   initialize_registers();
+
   asm __volatile__(".global test_block\n\t test_block:\n\t");
+  asm(".rept 0x1000000 ; nop ; .endr");
   /* INSERT HERE: Stop performance counters */
   /* INSERT HERE: Jump back to test_start */
 }
