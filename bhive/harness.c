@@ -25,8 +25,8 @@ static int read_child_regs(pid_t child, struct user_regs_struct *regs) {
   return ptrace(PTRACE_GETREGS, child, NULL, regs);
 #else
   struct iovec iov;
-  iov.iov_base = &regs;
-  iov.iov_len = sizeof(regs);
+  iov.iov_base = regs;
+  iov.iov_len = sizeof(struct user_regs_struct);
   return ptrace(PTRACE_GETREGSET, child, NT_PRSTATUS, &iov);
 #endif
 }
@@ -36,8 +36,8 @@ static int set_child_regs(pid_t child, struct user_regs_struct *regs) {
   return ptrace(PTRACE_SETREGS, child, NULL, regs);
 #else
   struct iovec iov;
-  iov.iov_base = &regs;
-  iov.iov_len = sizeof(regs);
+  iov.iov_base = regs;
+  iov.iov_len = sizeof(struct user_regs_struct);
   return ptrace(PTRACE_GETREGSET, child, NT_PRSTATUS, &iov);
 #endif
 }
@@ -139,6 +139,12 @@ static size_t insert_jump_to_test_start(void *addr) {
 #endif
 }
 
+static int aux_mem_overlap(void *test_page_start, void *test_page_end) {
+  void *aux_page_end = AUX_MEM_ADDR + PAGE_SIZE;
+  void *aux_page_start = AUX_MEM_ADDR;
+  return !(test_page_start >= aux_page_end || test_page_end <= aux_page_start);
+}
+
 static void *get_page_start(void *addr) {
   return (void *)(((unsigned long)addr >> PAGE_SHIFT) << PAGE_SHIFT);
 }
@@ -156,6 +162,7 @@ int measure(char *code_to_test, unsigned long code_size,
     perror("[PARENT, ERR] Error creating shared memory");
     return -1;
   }
+
   shm_unlink("/bhive_shm");
   ftruncate(shm_fd, SHARED_MEM_SIZE);
   dup2(shm_fd, SHM_FD);
@@ -205,7 +212,6 @@ int measure(char *code_to_test, unsigned long code_size,
       return -1;
     }
 
-    /* Save child stack */
     ret = save_child_stack(child, child_aux);
     if (ret == -1) {
       perror("[PARENT, ERR] Error reading child registers while saving stack");
@@ -286,6 +292,12 @@ int measure(char *code_to_test, unsigned long code_size,
     }
     printf("\n[CHILD] Test block and tail copied.\n");
 
+    if (aux_mem_overlap(runtest_page_start, runtest_page_end)) {
+      printf("[CHILD, ERR] Aux. memory and test pages overlap. Move aux. "
+             "memory somewhere else\n");
+      kill(getpid(), SIGKILL);
+    }
+
     /* Allocate aux. memory for use after unmapping.
      *
      * A new stack for child will be setup at the end of the aux. memory.
@@ -337,6 +349,7 @@ int measure(char *code_to_test, unsigned long code_size,
     *(uint64_t *)(aux_addr + ITERATIONS_OFFSET) = ITERATIONS;
     *(int *)(aux_addr + PERF_FD_OFFSET) = perf_fd;
     *(void **)(aux_addr + TEST_PAGE_END_OFFSET) = runtest_page_end;
+    *(long *)(aux_addr + INIT_VALUE_OFFSET) = INIT_VALUE;
 
     runtest();
   }
