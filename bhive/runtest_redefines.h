@@ -19,6 +19,7 @@
 #define PERF_EVENT_IOC_ENABLE 9216
 #define PERF_EVENT_IOC_RESET 9219
 
+#define SIGKILL 9
 #define SIGSTOP 19
 
 #ifdef __x86_64__
@@ -38,6 +39,7 @@
 #define SYS_ioctl 29
 #define SYS_kill 129
 #define SYS_mmap 222
+#define SYS_mprotect 226
 #define SYS_munmap 215
 #define SYS_read 63
 #define SYS_write 64
