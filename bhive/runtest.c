@@ -8,6 +8,8 @@
 
 #ifdef __x86_64__
 #define JUMP_TO_ASM_LABEL(l) asm __volatile__("jmp " #l)
+#elif __aarch64__
+#define JUMP_TO_ASM_LABEL(l) asm __volatile__("b " #l)
 #endif
 
 ALWAYS_INLINE void initialize_memory() {
@@ -39,7 +41,7 @@ ALWAYS_INLINE void initialize_registers() {
                    "mov %[init_value], %%r14\n\t"
                    "mov %[init_value], %%r15\n\t"
                    : /* No output */
-                   : [ init_value ] "n"(INIT_VALUE));
+                   : [init_value] "n"(INIT_VALUE));
 
   /* Move rbp, rsp to middle of page */
   asm __volatile__("mov %rax, %rbp\n\t"
@@ -87,7 +89,9 @@ ALWAYS_INLINE void initialize_registers() {
 
   /* Move stack to middle of page */
   asm __volatile__("mov sp, x0\n\t"
-                   "add sp, sp, #" HALF_PAGE_STR);
+                   "add sp, sp, %0"
+                   : /* No output */
+                   : "n"(PAGE_SIZE / 2));
 #else
 #pragma GCC error "initialize_registers not implemented for this architecture"
 #endif
@@ -95,16 +99,22 @@ ALWAYS_INLINE void initialize_registers() {
 
 ALWAYS_INLINE void recover_stack() {
 #ifdef __x86_64__
-  asm __volatile__("mov %[aux_mem], %%rbp\n\t"
-                   "mov %%rbp, %%rsp\n\t"
-                   "add %[stack_bp_offset], %%rbp\n\t"
-                   "add %[stack_sp_offset], %%rsp\n\t"
-                   "mov (%%rbp), %%rbp\n\t"
-                   "mov (%%rsp), %%rsp"
+  asm __volatile__(
+      "mov %[aux_mem], %%rbp\n\t"
+      "mov %%rbp, %%rsp\n\t"
+      "add %[stack_bp_offset], %%rbp\n\t"
+      "add %[stack_sp_offset], %%rsp\n\t"
+      "mov (%%rbp), %%rbp\n\t"
+      "mov (%%rsp), %%rsp"
+      : /* No output */
+      : [aux_mem] "n"(AUX_MEM_ADDR), [stack_bp_offset] "n"(STACK_BP_OFFSET),
+        [stack_sp_offset] "n"(STACK_SP_OFFSET));
+#elif __aarch64__
+  asm __volatile__("mov x0, %0\n\t"
+                   "ldr x0, [x0, %1]\n\t"
+                   "mov sp, x0"
                    : /* No output */
-                   : [ aux_mem ] "n"(AUX_MEM_ADDR),
-                     [ stack_bp_offset ] "n"(STACK_BP_OFFSET),
-                     [ stack_sp_offset ] "n"(STACK_SP_OFFSET));
+                   : "n"(AUX_MEM_ADDR), "n"(STACK_SP_OFFSET));
 #else
 #pragma GCC error "recover_stack not implemented for this architecture"
 #endif
@@ -131,14 +141,33 @@ ALWAYS_INLINE void protect_aux_stack() {
                    : /* No output */
                    : "n"(SYS_mprotect), "rmn"(stack_start), "n"(PAGE_SIZE),
                      "n"(PROT_NONE));
+#elif __aarch64__
+  /* mprotect(aux_start, PAGE_SIZE, PROT_NONE) */
+  asm __volatile__("mov x8, %0\n\t"
+                   "mov x0, %1\n\t"
+                   "mov x1, %2\n\t"
+                   "mov x2, %3\n\t"
+                   "svc #0"
+                   : /* No output */
+                   : "n"(SYS_mprotect), "n"(AUX_MEM_ADDR), "n"(PAGE_SIZE),
+                     "n"(PROT_NONE));
+  /* mprotect(stack_start, PAGE_SIZE, PROT_NONE) */
+  asm __volatile__("mov x8, %0\n\t"
+                   "ldr x0, %1\n\t"
+                   "mov x1, %2\n\t"
+                   "mov x2, %3\n\t"
+                   "svc #0"
+                   : /* No output */
+                   : "n"(SYS_mprotect), "m"(stack_start), "n"(PAGE_SIZE),
+                     "n"(PROT_NONE));
 #else
-#pragma GCC error "mem_access_check not implemented for this architecture"
+#pragma GCC error "protect_aux_stack not implemented for this architecture"
 #endif
 }
 
 ALWAYS_INLINE void unprotect_aux_stack() {
 #ifdef __x86_64__
-  /* mprotect(aux_start, PAGE_SIZE, PROT_NONE) */
+  /* mprotect(aux_start, PAGE_SIZE, PROT_WRITE | PROT_READ) */
   asm __volatile__("mov %0, %%rax\n\t"
                    "mov %1, %%rdi\n\t"
                    "mov %2, %%rsi\n\t"
@@ -147,7 +176,7 @@ ALWAYS_INLINE void unprotect_aux_stack() {
                    : /* No output */
                    : "n"(SYS_mprotect), "n"(AUX_MEM_ADDR), "n"(PAGE_SIZE),
                      "n"(PROT_WRITE | PROT_READ));
-  /* mprotect(stack_start, PAGE_SIZE, PROT_NONE) */
+  /* mprotect(stack_start, PAGE_SIZE, PROT_WRITE | PROT_READ) */
   asm __volatile__("mov %0, %%rax\n\t"
                    "mov %1, %%rdi\n\t"
                    "add %2, %%rdi\n\t"
@@ -158,12 +187,34 @@ ALWAYS_INLINE void unprotect_aux_stack() {
                    : /* No output */
                    : "n"(SYS_mprotect), "n"(AUX_MEM_ADDR), "n"(STACK_SP_OFFSET),
                      "n"(PAGE_SIZE), "n"(PROT_WRITE | PROT_READ));
+#elif __aarch64__
+  /* mprotect(aux_start, PAGE_SIZE, PROT_WRITE | PROT_READ) */
+  asm __volatile__("mov x8, %0\n\t"
+                   "mov x0, %1\n\t"
+                   "mov x1, %2\n\t"
+                   "mov x2, %3\n\t"
+                   "svc #0"
+                   : /* No output */
+                   : "n"(SYS_mprotect), "n"(AUX_MEM_ADDR), "n"(PAGE_SIZE),
+                     "n"(PROT_WRITE | PROT_READ));
+  /* mprotect(stack_start, PAGE_SIZE, PROT_WRITE | PROT_READ) */
+  asm __volatile__("mov x8, %0\n\t"
+                   "mov x0, %1\n\t"
+                   "add x0, x0, %2\n\t"
+                   "ldr x0, [x0]\n\t"
+                   "mov x1, %3\n\t"
+                   "mov x2, %4\n\t"
+                   "svc #0"
+                   : /* No output */
+                   : "n"(SYS_mprotect), "n"(AUX_MEM_ADDR), "n"(STACK_SP_OFFSET),
+                     "n"(PAGE_SIZE), "n"(PROT_WRITE | PROT_READ));
 #else
-#pragma GCC error "mem_access_check not implemented for this architecture"
+#pragma GCC error "unprotect_aux_stack not implemented for this architecture"
 #endif
 }
 
 void runtest() {
+  kill(getpid(), SIGSTOP);
   JUMP_TO_ASM_LABEL(runtest_start);
 
   asm __volatile__(".global tail_start\n\ttail_start:");
@@ -208,12 +259,12 @@ void runtest() {
   }
 
   asm __volatile__(".global runtest_start\n\t runtest_start:");
-  kill(getpid(), SIGSTOP);
 
   /* Unmap pages except this one, the stack, and aux. memory.
    * Assumption:
-   *  - stack is placed at top of user address space and grows downward.
-   *  - no overlap between pages containing test code, stack, and aux. mem.
+   *  - stack grows downward and is placed at the top of address space.
+   *  - no overlap between runtest, stack, and aux. memory (checked in
+   *    harness.c)
    */
   void *stack_sp = *(void **)(AUX_MEM_ADDR + STACK_SP_OFFSET);
   void *stack_page_start = get_page_start(stack_sp);
@@ -223,16 +274,26 @@ void runtest() {
   void *test_page_start = get_page_start(runtest);
   void *aux_page_start = AUX_MEM_ADDR;
   void *aux_page_end = AUX_MEM_ADDR + PAGE_SIZE;
-  munmap((void *)0, (size_t)test_page_start);
-  munmap(test_page_end, (size_t)(aux_page_start - test_page_end));
-  munmap(aux_page_end, (size_t)(stack_page_start - aux_page_end));
+  if (aux_page_end <= test_page_start) {
+    munmap((void *)0, (size_t)aux_page_start);
+    munmap(aux_page_end, (size_t)(test_page_start - aux_page_end));
+    munmap(test_page_end, (size_t)(stack_page_start - test_page_end));
+  } else if (aux_page_start >= test_page_end) {
+    munmap((void *)0, (size_t)test_page_start);
+    munmap(test_page_end, (size_t)(aux_page_start - test_page_end));
+    munmap(aux_page_end, (size_t)(stack_page_start - aux_page_end));
+  } else {
+    /* Aux. memory and test page overlaps. Should never be reached because this
+     * is checked in harness.c::measure
+     */
+    kill(getpid(), SIGKILL);
+  }
 
   /* Map memory for test block */
   mmap((void *)INIT_VALUE, PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED,
        SHM_FD, 0);
 
   asm __volatile__(".global test_start\n\t test_start:\n\t");
-
   if (*(uint64_t *)(AUX_MEM_ADDR + ITERATIONS_OFFSET) == 0) {
     kill(getpid(), SIGSTOP);
   }
