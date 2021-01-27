@@ -130,9 +130,13 @@ static size_t insert_jump_to_test_start(void *addr) {
   *(int *)(addr + 1) = (long int)test_start - (long int)addr - SIZE_OF_REL_JUMP;
   return SIZE_OF_REL_JUMP;
 #elif __aarch64__
-  *(char *)addr = 0x1;
-  *(char *)(addr + 1) = 0x4;
-  *(int *)(addr + 2) = (long int)test_start - (long int)addr - SIZE_OF_REL_JUMP;
+  unsigned int instr = 0x14 << 24;
+  int jump_in_words = ((int)test_start - (int)addr) / 4;
+  printf("jump in words: %d\n", jump_in_words);
+  /* Only bits 0:25 */
+  instr |= (jump_in_words & 0x03ffffff);
+  *(unsigned int *)(addr) = instr;
+  printf("instr: %x\n", instr);
 #else
 #pragma GCC error                                                              \
     "insert_jump_to_test_start not implemented for this architecture"
@@ -235,6 +239,9 @@ int measure(char *code_to_test, unsigned long code_size,
         printf("[PARENT] Child segfaulted at address %p. Mapping and "
                "restarting...\n",
                sinfo.si_addr);
+        void *child_pc = get_child_pc(child);
+        printf("child_pc: %p\n", child_pc);
+        printf("test_block: %p\n", test_block);
         ret = move_child_to_map_and_restart(child, sinfo.si_addr, child_aux);
         if (ret == -1) {
           perror("[PARENT, ERR] Error moving child to map_and_restart");
@@ -243,6 +250,9 @@ int measure(char *code_to_test, unsigned long code_size,
       }
       printf("Signo: %d\n", sinfo.si_signo);
       printf("Addr: %p\n", sinfo.si_addr);
+      void *testblock_end = test_block + code_size * unroll_factor;
+      printf("testblock_end: %p\n", testblock_end);
+      printf("tail_diff: %p\n", sinfo.si_addr - testblock_end);
       printf("core cyc: %lu\n", *(uint64_t *)(child_aux + CYC_COUNT_OFFSET));
       res->core_cyc = *(uint64_t *)(child_aux + CYC_COUNT_OFFSET);
       kill(child, SIGKILL);
