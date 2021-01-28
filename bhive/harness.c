@@ -38,8 +38,28 @@ static int set_child_regs(pid_t child, struct user_regs_struct *regs) {
   struct iovec iov;
   iov.iov_base = regs;
   iov.iov_len = sizeof(struct user_regs_struct);
-  return ptrace(PTRACE_GETREGSET, child, NT_PRSTATUS, &iov);
+  return ptrace(PTRACE_SETREGSET, child, NT_PRSTATUS, &iov);
 #endif
+}
+
+static int set_child_pc(pid_t child, void *pc) {
+  struct user_regs_struct regs;
+  int ret = read_child_regs(child, &regs);
+  if (ret == -1) {
+    return -1;
+  }
+#ifdef __x86_64__
+  regs.rip = (unsigned long long)pc;
+#elif __aarch64__
+  regs.pc = (unsigned long long)pc;
+#else
+#pragma GCC error "set_child_pc not implemented for this architecture"
+#endif
+  ret = set_child_regs(child, &regs);
+  if (ret == -1) {
+    return -1;
+  }
+  return ret;
 }
 
 static void *get_child_pc(pid_t child) {
@@ -97,22 +117,9 @@ static int save_child_stack(pid_t child, void *child_aux_mem) {
 
 static int move_child_to_map_and_restart(pid_t child, void *fault_addr,
                                          void *child_aux) {
-  struct user_regs_struct regs;
-  int ret = read_child_regs(child, &regs);
+  int ret = set_child_pc(child, map_and_restart);
   if (ret == -1) {
-    return -1;
-  }
-#ifdef __x86_64__
-  regs.rip = (unsigned long long)map_and_restart;
-#elif __aarch64__
-  regs.pc = (unsigned long long)map_and_restart;
-#else
-#pragma GCC error                                                              \
-    "move_child_to_map_and_restart not implemented for this architecture"
-#endif
-  ret = set_child_regs(child, &regs);
-  if (ret == -1) {
-    return -1;
+    perror("error setting child pc");
   }
   *(void **)(child_aux + MAP_AND_RESTART_ADDR_OFFSET) = fault_addr;
   return ret;
@@ -127,16 +134,14 @@ static int move_child_to_map_and_restart(pid_t child, void *fault_addr,
 static size_t insert_jump_to_test_start(void *addr) {
 #ifdef __x86_64__
   *(char *)addr = 0xe9;
-  *(int *)(addr + 1) = (long int)test_start - (long int)addr - SIZE_OF_REL_JUMP;
+  *(int *)(addr + 1) = (long)test_start - (long)addr - SIZE_OF_REL_JUMP;
   return SIZE_OF_REL_JUMP;
 #elif __aarch64__
   unsigned int instr = 0x14 << 24;
-  int jump_in_words = ((int)test_start - (int)addr) / 4;
-  printf("jump in words: %d\n", jump_in_words);
+  int jump_in_words = ((long)test_start - (long)addr) / 4;
   /* Only bits 0:25 */
   instr |= (jump_in_words & 0x03ffffff);
   *(unsigned int *)(addr) = instr;
-  printf("instr: %x\n", instr);
 #else
 #pragma GCC error                                                              \
     "insert_jump_to_test_start not implemented for this architecture"
@@ -239,9 +244,6 @@ int measure(char *code_to_test, unsigned long code_size,
         printf("[PARENT] Child segfaulted at address %p. Mapping and "
                "restarting...\n",
                sinfo.si_addr);
-        void *child_pc = get_child_pc(child);
-        printf("child_pc: %p\n", child_pc);
-        printf("test_block: %p\n", test_block);
         ret = move_child_to_map_and_restart(child, sinfo.si_addr, child_aux);
         if (ret == -1) {
           perror("[PARENT, ERR] Error moving child to map_and_restart");
@@ -250,9 +252,6 @@ int measure(char *code_to_test, unsigned long code_size,
       }
       printf("Signo: %d\n", sinfo.si_signo);
       printf("Addr: %p\n", sinfo.si_addr);
-      void *testblock_end = test_block + code_size * unroll_factor;
-      printf("testblock_end: %p\n", testblock_end);
-      printf("tail_diff: %p\n", sinfo.si_addr - testblock_end);
       printf("core cyc: %lu\n", *(uint64_t *)(child_aux + CYC_COUNT_OFFSET));
       res->core_cyc = *(uint64_t *)(child_aux + CYC_COUNT_OFFSET);
       kill(child, SIGKILL);
