@@ -22,13 +22,13 @@ ALWAYS_INLINE void initialize_memory() {
 ALWAYS_INLINE void initialize_registers() {
 #ifdef __x86_64__
   /* Enable flush-to-zero and denormals-are-zero */
-  asm __volatile__("mov %%rsp, %0\n\t"
-                   "stmxcsr DWORD [%%rsp]\n\t"
-                   "or DWORD [%%rsp], 0x8000\n\t"
-                   "ldmxcsr DWORD [%%rsp]\n\t"
-                   "stmxcsr DWORD [%%rsp]\n\t"
-                   "or DWORD [%%rsp], 0x40\n\t"
-                   "ldmxcsr DWORD [%%rsp]"
+  asm __volatile__("mov %0, %%rsp\n\t"
+                   "stmxcsr (%%rsp)\n\t"
+                   "orl $0x8000, (%%rsp)\n\t"
+                   "ldmxcsr (%%rsp)\n\t"
+                   "stmxcsr (%%rsp)\n\t"
+                   "orl $0x40, (%%rsp)\n\t"
+                   "ldmxcsr (%%rsp)"
                    : /* No output */
                    : "n"(INIT_VALUE + PAGE_SIZE / 2));
   /* Clear flags */
@@ -50,7 +50,7 @@ ALWAYS_INLINE void initialize_registers() {
                    "mov %[init_value], %%r14\n\t"
                    "mov %[init_value], %%r15\n\t"
                    : /* No output */
-                   : [init_value] "n"(INIT_VALUE));
+                   : [ init_value ] "n"(INIT_VALUE));
   /* Move rbp, rsp to middle of page */
   asm __volatile__("mov %rax, %rbp\n\t"
                    "add $2048, %rax\n\t"
@@ -109,16 +109,16 @@ ALWAYS_INLINE void initialize_registers() {
 
 ALWAYS_INLINE void recover_stack() {
 #ifdef __x86_64__
-  asm __volatile__(
-      "mov %[aux_mem], %%rbp\n\t"
-      "mov %%rbp, %%rsp\n\t"
-      "add %[stack_bp_offset], %%rbp\n\t"
-      "add %[stack_sp_offset], %%rsp\n\t"
-      "mov (%%rbp), %%rbp\n\t"
-      "mov (%%rsp), %%rsp"
-      : /* No output */
-      : [aux_mem] "n"(AUX_MEM_ADDR), [stack_bp_offset] "n"(STACK_BP_OFFSET),
-        [stack_sp_offset] "n"(STACK_SP_OFFSET));
+  asm __volatile__("mov %[aux_mem], %%rbp\n\t"
+                   "mov %%rbp, %%rsp\n\t"
+                   "add %[stack_bp_offset], %%rbp\n\t"
+                   "add %[stack_sp_offset], %%rsp\n\t"
+                   "mov (%%rbp), %%rbp\n\t"
+                   "mov (%%rsp), %%rsp"
+                   : /* No output */
+                   : [ aux_mem ] "n"(AUX_MEM_ADDR),
+                     [ stack_bp_offset ] "n"(STACK_BP_OFFSET),
+                     [ stack_sp_offset ] "n"(STACK_SP_OFFSET));
 #elif __aarch64__
   asm __volatile__("mov x0, %0\n\t"
                    "ldr x0, [x0, %1]\n\t"
