@@ -57,9 +57,9 @@ ALWAYS_INLINE void initialize_registers() {
                    "mov %rbp, %rsp");
 #elif __aarch64__
   /* Enable flush-to-zero */
-  asm __volatile__("vmrs x0, FPSCR\n\t"
-                   "or x0, x0, #0x01000000\n\t"
-                   "vmsr FPSCR, x0");
+  asm __volatile__("mrs x0, FPCR\n\t"
+                   "orr x0, x0, #0x01000000\n\t"
+                   "msr FPCR, x0");
   /* Clear flags */
   asm __volatile__("msr nzcv, xzr");
   /* Initialize registers */
