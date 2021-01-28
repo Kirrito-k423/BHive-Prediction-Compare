@@ -21,10 +21,19 @@ ALWAYS_INLINE void initialize_memory() {
 
 ALWAYS_INLINE void initialize_registers() {
 #ifdef __x86_64__
+  /* Enable flush-to-zero and denormals-are-zero */
+  asm __volatile__("mov %%rsp, %0\n\t"
+                   "stmxcsr DWORD [%%rsp]\n\t"
+                   "or DWORD [%%rsp], 0x8000\n\t"
+                   "ldmxcsr DWORD [%%rsp]\n\t"
+                   "stmxcsr DWORD [%%rsp]\n\t"
+                   "or DWORD [%%rsp], 0x40\n\t"
+                   "ldmxcsr DWORD [%%rsp]"
+                   : /* No output */
+                   : "n"(INIT_VALUE + PAGE_SIZE / 2));
   /* Clear flags */
   asm __volatile__("xor %rax, %rax\n\t"
                    "sahf");
-
   /* Initialize registers */
   asm __volatile__("mov %[init_value], %%rax\n\t"
                    "mov %[init_value], %%rbx\n\t"
@@ -42,15 +51,17 @@ ALWAYS_INLINE void initialize_registers() {
                    "mov %[init_value], %%r15\n\t"
                    : /* No output */
                    : [init_value] "n"(INIT_VALUE));
-
   /* Move rbp, rsp to middle of page */
   asm __volatile__("mov %rax, %rbp\n\t"
                    "add $2048, %rax\n\t"
                    "mov %rbp, %rsp");
 #elif __aarch64__
+  /* Enable flush-to-zero */
+  asm __volatile__("vmrs x0, FPSCR\n\t"
+                   "or x0, x0, #0x01000000\n\t"
+                   "vmsr FPSCR, x0");
   /* Clear flags */
   asm __volatile__("msr nzcv, xzr");
-
   /* Initialize registers */
   long init_value = INIT_VALUE;
   asm __volatile__("ldr x0, %0\n\t"
@@ -86,7 +97,6 @@ ALWAYS_INLINE void initialize_registers() {
                    "ldr x30, %0\n\t"
                    : /* No output */
                    : "m"(init_value));
-
   /* Move stack to middle of page */
   asm __volatile__("mov sp, x0\n\t"
                    "add sp, sp, %0"
