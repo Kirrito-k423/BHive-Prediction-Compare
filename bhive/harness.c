@@ -241,6 +241,22 @@ int measure(char *code_to_test, unsigned long code_size,
       siginfo_t sinfo;
       ptrace(PTRACE_GETSIGINFO, child, 0, &sinfo);
       if (sinfo.si_signo == SIGSEGV) {
+        if (sinfo.si_addr >= AUX_MEM_ADDR &&
+            sinfo.si_addr < AUX_MEM_ADDR + PAGE_SIZE) {
+          printf("[PARENT] Child tried to access aux. memory. Giving up...\n");
+          kill(child, SIGKILL);
+          return -1;
+        }
+        void *child_stack_start = get_page_start(child_stack_sp);
+        void *child_stack_bp = *(void **)(child_aux + STACK_BP_OFFSET);
+        void *child_stack_end = get_page_end(child_stack_bp);
+        if (sinfo.si_addr >= child_stack_start &&
+            sinfo.si_addr < child_stack_end) {
+          printf(
+              "[PARENT] Child tried to access original stack. Giving up...\n");
+          kill(child, SIGKILL);
+          return -1;
+        }
         printf("[PARENT] Child segfaulted at address %p. Mapping and "
                "restarting...\n",
                sinfo.si_addr);
