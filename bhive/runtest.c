@@ -12,6 +12,9 @@
 #define JUMP_TO_ASM_LABEL(l) asm __volatile__("b " #l)
 #endif
 
+/**
+ * Initialize memory in page INIT_VALUE to INIT_VALUE
+ */
 ALWAYS_INLINE void initialize_memory() {
   for (long *p = (long *)INIT_VALUE; p < (long *)(INIT_VALUE + PAGE_SIZE);
        p++) {
@@ -19,6 +22,14 @@ ALWAYS_INLINE void initialize_memory() {
   }
 }
 
+/**
+ * Initialize registers:
+ *  - Enable flush-to-zero
+ *  - Clear flags (where applicable)
+ *  - Initialize registers to INIT_VALUE
+ *  - Point base pointer and stack pointer to middle of initial page at
+ *    INIT_VALUE
+ */
 ALWAYS_INLINE void initialize_registers() {
 #ifdef __x86_64__
   /* Enable flush-to-zero and denormals-are-zero */
@@ -107,6 +118,9 @@ ALWAYS_INLINE void initialize_registers() {
 #endif
 }
 
+/**
+ * Modify the stack pointer and base pointer registers to point to the stack.
+ */
 ALWAYS_INLINE void recover_stack() {
 #ifdef __x86_64__
   asm __volatile__("mov %[aux_mem], %%rbp\n\t"
@@ -130,6 +144,9 @@ ALWAYS_INLINE void recover_stack() {
 #endif
 }
 
+/**
+ * Prevent the process from reading or writing to aux. memory and the stack.
+ */
 ALWAYS_INLINE void protect_aux_stack() {
   void *stack_start = *(void **)(AUX_MEM_ADDR + STACK_SP_OFFSET);
 #ifdef __x86_64__
@@ -175,6 +192,9 @@ ALWAYS_INLINE void protect_aux_stack() {
 #endif
 }
 
+/**
+ * Allow the process to read and write to aux. memory and the stack.
+ */
 ALWAYS_INLINE void unprotect_aux_stack() {
 #ifdef __x86_64__
   /* mprotect(aux_start, PAGE_SIZE, PROT_WRITE | PROT_READ) */
@@ -227,6 +247,9 @@ void runtest() {
   kill(getpid(), SIGSTOP);
   JUMP_TO_ASM_LABEL(runtest_start);
 
+  /**
+   * Code to be copied to the end of test block.
+   */
   asm __volatile__(".global tail_start\n\ttail_start:");
   {
     unprotect_aux_stack();
@@ -253,6 +276,10 @@ void runtest() {
   }
   asm __volatile__(".global tail_end\n\ttail_end:");
 
+  /**
+   * Map page containing accessed address and restart.
+   * Parent process will move child pc to this label when segfault happens.
+   */
   asm __volatile__(".global map_and_restart\n\t map_and_restart:");
   {
     unprotect_aux_stack();
@@ -268,6 +295,9 @@ void runtest() {
     JUMP_TO_ASM_LABEL(test_start);
   }
 
+  /**
+   * The actual start of function runtest
+   */
   asm __volatile__(".global runtest_start\n\t runtest_start:");
 
   /* Unmap pages except this one, the stack, and aux. memory.

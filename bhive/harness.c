@@ -78,7 +78,8 @@ static void *get_child_pc(pid_t child) {
 }
 
 /**
- * Save child stack pointer and base pointer.
+ * Save child stack pointer and base pointer to (shared) child aux. memory
+ * at offsets STACK_SP_OFFSET and STACK_BP_OFFSET.
  *
  * @return 0 when successful. -1 if error while reading child registers.
  */
@@ -115,6 +116,10 @@ static int save_child_stack(pid_t child, void *child_aux_mem) {
 #endif
 }
 
+/**
+ * Modify child pc to address of map_and_restart and store fault_addr in
+ * (shared) child aux. memory at offset MAP_AND_RESTART_ADDR_OFFSET
+ */
 static int move_child_to_map_and_restart(pid_t child, void *fault_addr,
                                          void *child_aux) {
   int ret = set_child_pc(child, map_and_restart);
@@ -131,6 +136,9 @@ static int move_child_to_map_and_restart(pid_t child, void *fault_addr,
 #define SIZE_OF_REL_JUMP 4
 #endif
 
+/**
+ * Insert instruction(s) to jump to test_start in runtest.c at addr.
+ */
 static size_t insert_jump_to_test_start(void *addr) {
 #ifdef __x86_64__
   *(char *)addr = 0xe9;
@@ -148,6 +156,11 @@ static size_t insert_jump_to_test_start(void *addr) {
 #endif
 }
 
+/**
+ * Checks if pages containing child test code overlaps aux. memory.
+ *
+ * @return true if there is overlap. false if none.
+ */
 static int aux_mem_overlap(void *test_page_start, void *test_page_end) {
   void *aux_page_end = AUX_MEM_ADDR + PAGE_SIZE;
   void *aux_page_start = AUX_MEM_ADDR;
@@ -162,6 +175,15 @@ static void *get_page_end(void *addr) {
   return get_page_start(addr) + PAGE_SIZE;
 }
 
+/**
+ * Measures the number of cycles to execute code pointed to by code_to_test
+ * unrolled unroll_factor times.
+ *
+ * @param code_to_test pointer to code block as array of bytes.
+ * @param code_size size of code block in bytes.
+ * @param unroll_factor number of times to unroll the code block.
+ * @param res pointer to a measure_results_t where results will be stored.
+ */
 int measure(char *code_to_test, unsigned long code_size,
             unsigned int unroll_factor, measure_results_t *res) {
   /* Create shared memory */
