@@ -1,14 +1,18 @@
 #include <stdlib.h>
+#include <stdio.h>
 
 #include "harness.h"
 
-void main() {
-  // mov rax, [0x2325000]; mov rax, [0x2326000]; mov rax, [0x2327000]
-  char code[24] = {0x48, 0x8B, 0x04, 0x25, 0x00, 0x50, 0x32, 0x02,
-                   0x48, 0x8B, 0x04, 0x25, 0x00, 0x60, 0x32, 0x02,
-                   0x48, 0x8B, 0x04, 0x25, 0x00, 0x70, 0x32, 0x02};
-  // add rax, 0x4
-  char add_code[4] = {0x48, 0x83, 0xC0, 0x04};
+void main(int argc, char** argv) {
+  char add_code_tsv110[argc-1];
+  int count = atoi(argv[1]);
+  for (int i = 1; i < argc-1; i++) {
+    uint16_t intVal;
+    sscanf(argv[i+1], "%x", &intVal);
+    // printf("%d \n",intVal);
+    add_code_tsv110[i-1] = intVal; 
+  }
   measure_results_t res;
-  measure(code, 24, 0, &res);
+  // printf("%d %d\n",argc-2, count);
+  measure(add_code_tsv110, argc-2, count, &res);
 }

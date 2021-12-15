@@ -8,7 +8,7 @@
 
 #define INIT_VALUE 0x2324000
 
-#define MAX_FAULTS 5
+#define MAX_FAULTS 1024
 
 #define PAGE_SHIFT 12
 #define PAGE_SIZE (1u << PAGE_SHIFT)

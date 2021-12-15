@@ -122,7 +122,9 @@ static int save_child_stack(pid_t child, void *child_aux_mem) {
  */
 static int move_child_to_map_and_restart(pid_t child, void *fault_addr,
                                          void *child_aux) {
+                                       
   int ret = set_child_pc(child, map_and_restart);
+ 
   if (ret == -1) {
     perror("error setting child pc");
   }
@@ -279,10 +281,17 @@ int measure(char *code_to_test, unsigned long code_size,
           kill(child, SIGKILL);
           return -1;
         }
+        struct user_regs_struct regs;
+        read_child_regs(child, &regs);
         printf("[PARENT] Child segfaulted at address %p. Mapping and "
                "restarting...\n",
                sinfo.si_addr);
+        for(int i =0 ; i < 32; i++)
+        printf("[PARENT] Child reg: %llx.\n",
+               regs.regs[i]);
         ret = move_child_to_map_and_restart(child, sinfo.si_addr, child_aux);
+        ret = move_child_to_map_and_restart(child, sinfo.si_addr, child_aux);
+
         if (ret == -1) {
           perror("[PARENT, ERR] Error moving child to map_and_restart");
         }
@@ -311,8 +320,8 @@ int measure(char *code_to_test, unsigned long code_size,
 
     /* Copy test block and tail */
     void *runtest_page_start = get_page_start(runtest);
-    unsigned long unrolled_block_size = code_size * unroll_factor;
-    unsigned long tail_size = tail_end - tail_start;
+    unsigned long unrolled_block_size __attribute__((aligned(8))) = code_size * unroll_factor;
+    unsigned long tail_size __attribute__((aligned(8))) = tail_end - tail_start;
     void *runtest_page_end = get_page_end(test_block + unrolled_block_size +
                                           tail_size + SIZE_OF_REL_JUMP);
 
@@ -322,7 +331,7 @@ int measure(char *code_to_test, unsigned long code_size,
       perror("[CHILD] Error unprotecting test code");
     }
 
-    char *block_ptr = (char *)test_block;
+    char *block_ptr __attribute__((aligned(8))) = (char *)test_block;
     for (int i = 0; i < unroll_factor; i++) {
       memcpy(block_ptr, code_to_test, code_size);
       block_ptr += code_size;
@@ -397,7 +406,7 @@ int measure(char *code_to_test, unsigned long code_size,
     *(int *)(aux_addr + PERF_FD_OFFSET) = perf_fd;
     *(void **)(aux_addr + TEST_PAGE_END_OFFSET) = runtest_page_end;
     *(long *)(aux_addr + INIT_VALUE_OFFSET) = INIT_VALUE;
-
+    printf("[TEST] test1\n");
     runtest();
   }
 }

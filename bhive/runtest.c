@@ -2,7 +2,7 @@
  * This file contains code left in the child memory after unmapping. Because
  * everything else is unmapped at this point, no stdlib available.
  **/
-
+#include <stdio.h>
 #include "common.h"
 #include "runtest_redefines.h"
 
@@ -244,6 +244,7 @@ ALWAYS_INLINE void unprotect_aux_stack() {
 }
 
 void runtest() {
+
   kill(getpid(), SIGSTOP);
   JUMP_TO_ASM_LABEL(runtest_start);
 
@@ -254,7 +255,6 @@ void runtest() {
   {
     unprotect_aux_stack();
     recover_stack();
-
     /* Stop performance counters */
     int perf_fd = *(int *)(AUX_MEM_ADDR + PERF_FD_OFFSET);
     disable_pmu(perf_fd);
@@ -275,7 +275,6 @@ void runtest() {
     *(uint64_t *)(AUX_MEM_ADDR + ITERATIONS_OFFSET) -= 1;
   }
   asm __volatile__(".global tail_end\n\ttail_end:");
-
   /**
    * Map page containing accessed address and restart.
    * Parent process will move child pc to this label when segfault happens.
@@ -284,7 +283,6 @@ void runtest() {
   {
     unprotect_aux_stack();
     recover_stack();
-
     void *addr = *(void **)(AUX_MEM_ADDR + MAP_AND_RESTART_ADDR_OFFSET);
     mmap(get_page_start(addr), PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED,
          SHM_FD, 0);
@@ -314,21 +312,31 @@ void runtest() {
   void *test_page_start = get_page_start(runtest);
   void *aux_page_start = AUX_MEM_ADDR;
   void *aux_page_end = AUX_MEM_ADDR + PAGE_SIZE;
+
   if (aux_page_end <= test_page_start) {
+
+    long unsigned int i = (size_t)aux_page_start;
+
     munmap((void *)0, (size_t)aux_page_start);
+
     munmap(aux_page_end, (size_t)(test_page_start - aux_page_end));
+
+
     munmap(test_page_end, (size_t)(stack_page_start - test_page_end));
+
   } else if (aux_page_start >= test_page_end) {
+
     munmap((void *)0, (size_t)test_page_start);
     munmap(test_page_end, (size_t)(aux_page_start - test_page_end));
     munmap(aux_page_end, (size_t)(stack_page_start - aux_page_end));
   } else {
+
     /* Aux. memory and test page overlaps. Should never be reached because this
      * is checked in harness.c::measure
      */
     kill(getpid(), SIGKILL);
   }
-
+  
   /* Map memory for test block */
   mmap((void *)INIT_VALUE, PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED,
        SHM_FD, 0);
@@ -337,20 +345,19 @@ void runtest() {
   if (*(uint64_t *)(AUX_MEM_ADDR + ITERATIONS_OFFSET) == 0) {
     kill(getpid(), SIGSTOP);
   }
-
   initialize_memory();
-
   /* Start performance counters */
   int perf_fd = *(int *)(AUX_MEM_ADDR + PERF_FD_OFFSET);
   reset_pmu(perf_fd);
   enable_pmu(perf_fd);
-
   protect_aux_stack();
-
   initialize_registers();
 
-  asm __volatile__(".global test_block\n\t test_block:\n\t");
+  // asm __volatile__(".global test_block\n\t  test_block:\n\t");
+  asm __volatile__(".global test_block\n\t");
+  asm __volatile__("test_block:\n\t");
   asm(".rept 0x1000000 ; nop ; .endr");
+
   /* INSERT HERE: Stop performance counters */
   /* INSERT HERE: Jump back to test_start */
 }
