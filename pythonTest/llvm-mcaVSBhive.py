@@ -105,7 +105,7 @@ def BHiveInputDel0x(block):
     return input2word
 
 def calculateAccuracy(accurateCycles,predictionCycles):
-    if accurateCycles == -1 or predictionCycles == -1:
+    if accurateCycles == -1 or predictionCycles == -1 or accurateCycles == 0:
         return 0
     else:
         # print("{} {}".format(accurateCycles,predictionCycles))
