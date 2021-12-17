@@ -2,7 +2,8 @@
 from collections import defaultdict
 import re
 import os
-# from rich.progress import track
+from rich.progress import track
+from rich.progress import Progress
 from tqdm import *
 import  time
 import sys
@@ -121,21 +122,26 @@ def paralleReadProcess(startFileLine,endFileLine,unique_revBiblock_Queue,frequen
     llvmmcaCyclesRevBiBlock = defaultdict(int)
     BhiveCyclesRevBiBlock = defaultdict(int)
     accuracy = defaultdict(float)
-    for line in tqdm(fread.readlines()[startFileLine:endFileLine],total=endFileLine-startFileLine):
-        # T1 = time.time_ns()
-    # for line in fread:
-        block=re.search('^(.*),',line).group(1)
-        num=re.search(',(.*)$',line).group(1)
-        unique_revBiblock.add(block)
-        frequencyRevBiBlock[block] += int(num)
-        # T2 = time.time_ns()
-        BhiveCyclesRevBiBlock[block] = BHive(BHiveInput(block),BHiveInputDel0x(block),0)
-        # T3 = time.time_ns()
-        llvmmcaCyclesRevBiBlock[block] = LLVM_mca(capstone(capstoneInput(block)))
-        # T4 = time.time_ns()
-        accuracy[block]= calculateAccuracy(BhiveCyclesRevBiBlock[block],llvmmcaCyclesRevBiBlock[block])
-        # nsNum=1000*1000*1000
-        # print('运行分段时间:\n%ss\n%ss\n%ss\n' % ((T2 - T1)/nsNum,(T3 - T2)/nsNum,(T4 - T3)/nsNum))
+    with Progress() as progress:
+        if(startFileLine==0):
+            task=progress.add_task("MPI: {}~{}".format(startFileLine,endFileLine), total=endFileLine-startFileLine)
+        for line in fread.readlines()[startFileLine:endFileLine]:
+            if(startFileLine==0):
+                progress.update(task,advance=1)
+            # T1 = time.time_ns()
+        # for line in fread:
+            block=re.search('^(.*),',line).group(1)
+            num=re.search(',(.*)$',line).group(1)
+            unique_revBiblock.add(block)
+            frequencyRevBiBlock[block] += int(num)
+            # T2 = time.time_ns()
+            BhiveCyclesRevBiBlock[block] = BHive(BHiveInput(block),BHiveInputDel0x(block),0)
+            # T3 = time.time_ns()
+            llvmmcaCyclesRevBiBlock[block] = LLVM_mca(capstone(capstoneInput(block)))
+            # T4 = time.time_ns()
+            accuracy[block]= calculateAccuracy(BhiveCyclesRevBiBlock[block],llvmmcaCyclesRevBiBlock[block])
+            # nsNum=1000*1000*1000
+            # print('运行分段时间:\n%ss\n%ss\n%ss\n' % ((T2 - T1)/nsNum,(T3 - T2)/nsNum,(T4 - T3)/nsNum))
     fread.close() 
     unique_revBiblock_Queue.put(unique_revBiblock)
     frequencyRevBiBlock_Queue.put(frequencyRevBiBlock)
@@ -166,6 +172,7 @@ def readPartFile(unique_revBiblock,frequencyRevBiBlock,llvmmcaCyclesRevBiBlock,B
     llvmmcaCyclesRevBiBlock_Queue=Queue()
     BhiveCyclesRevBiBlock_Queue=Queue()
     accuracy_Queue=Queue()
+
 
     for i in range(ProcessNum):
         startFileLine=int(i*num_file/ProcessNum)
