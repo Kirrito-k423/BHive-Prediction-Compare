@@ -17,8 +17,8 @@ def BHive(input,showinput,trytime):
     elif trytime>5:
         print("trytime > 5")
         return -1
-    print("before main {}/{} {}".format(order,num_file,input))
-    print("before main {}/{} {}".format(order,num_file,showinput))
+    # print("before main {}/{} {}".format(order,num_file,input))
+    # print("before main {}/{} {}".format(order,num_file,showinput))
     sys.stdout.flush()
     # begin_time=time.time()
     val=os.popen('echo '+password+' | sudo -S /home/shaojiemike/test/bhive-re/bhive/main '+str(BHiveCount)+input)
@@ -35,7 +35,7 @@ def BHive(input,showinput,trytime):
     regexResult=re.search("core cyc: ([0-9]*)",list[-1])
     if regexResult:
         resultCycle=regexResult.group(1)
-        print(resultCycle)
+        # print(resultCycle)
         return resultCycle
     else:
         print("trytime: {} {}".format(trytime ,list[-1]))
@@ -101,9 +101,9 @@ if __name__ == "__main__":
     global filename,password
     print("请输入sudo密码")
     password=input("password:")
-    taskfilenameprefix="/home/shaojiemike/blockFrequency/tensorflow_41Gdir_00all_skip_2"
+    # taskfilenameprefix="/home/shaojiemike/blockFrequency/tensorflow_41Gdir_00all_skip_2"
     # taskfilenameprefix="/home/shaojiemike/blockFrequency/tensorflow_13G_part_skip_2"
-    # taskfilenameprefix="/home/shaojiemike/blockFrequency/tensorflow_test"
+    taskfilenameprefix="/home/shaojiemike/blockFrequency/tensorflow_test_100"
     taskfilenamesubfix="log"
     filename="{}.{}".format(taskfilenameprefix,taskfilenamesubfix)
     unique_revBiblock=set()
