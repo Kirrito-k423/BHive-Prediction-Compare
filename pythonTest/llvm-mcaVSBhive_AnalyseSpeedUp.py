@@ -122,14 +122,26 @@ def paralleReadProcess(startFileLine,endFileLine,unique_revBiblock_Queue,frequen
     llvmmcaCyclesRevBiBlock = defaultdict(int)
     BhiveCyclesRevBiBlock = defaultdict(int)
     accuracy = defaultdict(float)
-    with Progress() as progress:
-        if(startFileLine==0):
-            task=progress.add_task("MPI: {}~{}".format(startFileLine,endFileLine), total=endFileLine-startFileLine)
-        for line in fread.readlines()[startFileLine:endFileLine]:
-            if(startFileLine==0):
-                progress.update(task,advance=1)
+    if endFileLine==num_file:
+        for line in tqdm(fread.readlines()[startFileLine:endFileLine],total=endFileLine-startFileLine):
             # T1 = time.time_ns()
         # for line in fread:
+            block=re.search('^(.*),',line).group(1)
+            num=re.search(',(.*)$',line).group(1)
+            unique_revBiblock.add(block)
+            frequencyRevBiBlock[block] += int(num)
+            # T2 = time.time_ns()
+            BhiveCyclesRevBiBlock[block] = BHive(BHiveInput(block),BHiveInputDel0x(block),0)
+            # T3 = time.time_ns()
+            llvmmcaCyclesRevBiBlock[block] = LLVM_mca(capstone(capstoneInput(block)))
+            # T4 = time.time_ns()
+            accuracy[block]= calculateAccuracy(BhiveCyclesRevBiBlock[block],llvmmcaCyclesRevBiBlock[block])
+            # nsNum=1000*1000*1000
+            # print('运行分段时间:\n%ss\n%ss\n%ss\n' % ((T2 - T1)/nsNum,(T3 - T2)/nsNum,(T4 - T3)/nsNum))
+    else:
+        # for line in tqdm(fread.readlines()[startFileLine:endFileLine],total=endFileLine-startFileLine):
+            # T1 = time.time_ns()
+        for line in fread.readlines()[startFileLine:endFileLine]:
             block=re.search('^(.*),',line).group(1)
             num=re.search(',(.*)$',line).group(1)
             unique_revBiblock.add(block)
@@ -181,18 +193,18 @@ def readPartFile(unique_revBiblock,frequencyRevBiBlock,llvmmcaCyclesRevBiBlock,B
         p = Process(target=paralleReadProcess, args=(startFileLine,endFileLine,unique_revBiblock_Queue,frequencyRevBiBlock_Queue,llvmmcaCyclesRevBiBlock_Queue,BhiveCyclesRevBiBlock_Queue,accuracy_Queue))
         p.start()
 
-    for i in range(ProcessNum):
+    for i in tqdm(range(ProcessNum)):
         unique_revBiblock=unique_revBiblock.union(unique_revBiblock_Queue.get())
         frequencyRevBiBlock.update(frequencyRevBiBlock_Queue.get())
         llvmmcaCyclesRevBiBlock.update(llvmmcaCyclesRevBiBlock_Queue.get())
         BhiveCyclesRevBiBlock.update(BhiveCyclesRevBiBlock_Queue.get())
         accuracy.update(accuracy_Queue.get())
     return unique_revBiblock
-    print(unique_revBiblock)
-    print(frequencyRevBiBlock)
-    print(accuracy)
-    print(len(unique_revBiblock))
-    print(len(frequencyRevBiBlock))
+    # print(unique_revBiblock)
+    # print(frequencyRevBiBlock)
+    # print(accuracy)
+    # print(len(unique_revBiblock))
+    # print(len(frequencyRevBiBlock))
     
 
 
