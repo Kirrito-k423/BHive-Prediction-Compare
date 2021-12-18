@@ -12,7 +12,7 @@ from multiprocessing import Process, Queue
 
 
 BHiveCount=10000
-ProcessNum=2
+ProcessNum=40
 
 def OSACA(inputFile):
     val=os.popen('/home/shaojiemike/test/OSACA/osacaEnv/bin/osaca --arch TSV110 '+str(inputFile))#  -timeline -show-encoding -all-stats -all-views
@@ -25,9 +25,9 @@ def OSACA(inputFile):
             minresultCycle=regexResult.group(2)
             avgresultCycle=regexResult.group(3)
             # print("before mca {}/{} cycle:{}".format(order,num_file,resultCycle))
-            print("  maxresultCycle :{}".format(maxresultCycle))
+            # print("  maxresultCycle :{}".format(maxresultCycle))
             return maxresultCycle
-    print("  wrong")
+    # print("  wrong")
     return -1
 
 def saveOSACAInput2File(InputAsmList,rank):
@@ -114,12 +114,16 @@ def BHiveInputDel0x(block):
     # print(input2word)
     return input2word
 
-def calculateAccuracy(accurateCycles,predictionCycles):
-    if int(accurateCycles) == -1 or int(predictionCycles) == -1 or int(accurateCycles) == 0:
+def calculateAccuracy(accurateCycles,predictionCycles,rank):
+    # print(" rank{}-tsj".format(rank))
+    if int(accurateCycles) == -1 or float(predictionCycles) == -1 or int(accurateCycles) == 0:
+        # print(" rank{}-0".format(rank))
         return 0
     else:
+        # print(" rank{}-tsj2".format(rank))
         # print("{} {}".format(accurateCycles,predictionCycles))
-        gap=abs(int(predictionCycles)-int(accurateCycles))
+        gap=abs(float(predictionCycles)-int(accurateCycles))
+        # print(" rank{}-{}".format(rank,int(gap)/int(accurateCycles)))
         return int(gap)/int(accurateCycles) # accuracy variable is error
 
 def paralleReadProcess(rank,password, startFileLine,endFileLine,unique_revBiblock_Queue,frequencyRevBiBlock_Queue,OSACACyclesRevBiBlock_Queue,BhiveCyclesRevBiBlock_Queue,accuracy_Queue):
@@ -132,26 +136,26 @@ def paralleReadProcess(rank,password, startFileLine,endFileLine,unique_revBibloc
     accuracy = defaultdict(float)
     for line in tqdm(fread.readlines()[startFileLine:endFileLine],total=endFileLine-startFileLine,desc=str("{:2d}".format(rank))):
     # for line in fread:
-        print("rank{}".format(rank))
+        # print("rank{}".format(rank))
         block=re.search('^(.*),',line).group(1)
         num=re.search(',(.*)$',line).group(1)
         unique_revBiblock.add(block)
         frequencyRevBiBlock[block] += int(num)
-        print("     rank{}:block{}".format(rank,block))
+        # print("     rank{}:block{}".format(rank,block))
         BhiveCyclesRevBiBlock[block] = BHive(password,BHiveInput(block),BHiveInputDel0x(block),0)
-        print("         rank{}:block{}".format(rank,block))
+        # print("         rank{}:block{}______{}".format(rank,block,BhiveCyclesRevBiBlock[block]))
         OSACACyclesRevBiBlock[block] = OSACA(saveOSACAInput2File(capstoneList(capstoneInput(block)),rank))
-        print("             rank{}:block{}".format(rank,block))
-        accuracy[block]= calculateAccuracy(BhiveCyclesRevBiBlock[block],OSACACyclesRevBiBlock[block])
-        print("0rank{}".format(rank))
+        # print("             rank{}:block{}______{}".format(rank,block,OSACACyclesRevBiBlock[block]))
+        accuracy[block]= calculateAccuracy(BhiveCyclesRevBiBlock[block],OSACACyclesRevBiBlock[block],rank)
+        # print("0rank{}".format(rank))
     fread.close() 
-    print("1rank{}".format(rank))
+    # print("1rank{}".format(rank))
     unique_revBiblock_Queue.put(unique_revBiblock)
     frequencyRevBiBlock_Queue.put(frequencyRevBiBlock)
-    print("2rank{}".format(rank))
+    # print("2rank{}".format(rank))
     OSACACyclesRevBiBlock_Queue.put(OSACACyclesRevBiBlock)
     BhiveCyclesRevBiBlock_Queue.put(BhiveCyclesRevBiBlock)
-    print("3rank{}".format(rank))
+    # print("3rank{}".format(rank))
     accuracy_Queue.put(accuracy)
     print("MPI Process end {:2d} {}~{}".format(rank,startFileLine,endFileLine))
 
@@ -233,7 +237,7 @@ if __name__ == "__main__":
     password=input("password:")
     # taskfilenameprefix="/home/shaojiemike/blockFrequency/tensorflow_41Gdir_00all_skip_2"
     # taskfilenameprefix="/home/shaojiemike/blockFrequency/tensorflow_13G_part_skip_2"
-    taskfilenameprefix="/home/shaojiemike/blockFrequency/tensorflow_test_3"
+    taskfilenameprefix="/home/shaojiemike/blockFrequency/tensorflow_test_100"
     taskfilenamesubfix="log"
     filename="{}.{}".format(taskfilenameprefix,taskfilenamesubfix)
     unique_revBiblock=set()
