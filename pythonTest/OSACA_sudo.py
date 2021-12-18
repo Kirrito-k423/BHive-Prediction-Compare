@@ -14,14 +14,17 @@ rank=1
 def OSACA(inputFile):
     val=os.popen('/home/shaojiemike/test/OSACA/osacaEnv/bin/osaca --arch TSV110 '+str(inputFile))#  -timeline -show-encoding -all-stats -all-views
     list = val.readlines()
-    regexResult=re.search("Total Cycles:      ([0-9]*)",list[2])# 需要修改osaca来有个标记位匹配
-    if regexResult:
-        resultCycle=regexResult.group(1)
-        # print("before mca {}/{} cycle:{}".format(order,num_file,resultCycle))
-        return resultCycle
-    else:
-        print("wrong")
-        return -1
+    for listObj in list[20:]:
+        print(listObj)
+        regexResult=re.search("max_tp_sum:([.0-9]*),min_tp_sum:([.0-9]*),avg_tp_sum:([.0-9]*)",listObj)# 需要修改osaca来有个标记位匹配
+        if regexResult:
+            maxresultCycle=regexResult.group(1)
+            minresultCycle=regexResult.group(2)
+            avgresultCycle=regexResult.group(3)
+            # print("before mca {}/{} cycle:{}".format(order,num_file,resultCycle))
+            return maxresultCycle
+    print("wrong")
+    return -1
 
 def saveOSACAInput2File(InputAsmList):
     writeFilename="{}.OSACAInputTmpAsmBlockRank{}".format(taskfilenameprefix,rank)
@@ -76,7 +79,7 @@ def readPartFile(unique_revBiblock,frequencyRevBiBlock,cyclesRevBiBlock):
 
 
 def saveAllResult(taskfilenameprefix,unique_revBiblock,frequencyRevBiBlock,cyclesRevBiBlock):
-    writeFilename="{}.LLVM-mca-Pre".format(taskfilenameprefix)
+    writeFilename="{}.OSACA-Pre".format(taskfilenameprefix)
     fwriteblockfreq = open(writeFilename, "w")
     for tmp_block_binary_reverse in unique_revBiblock:
         fwriteblockfreq.writelines(tmp_block_binary_reverse+','+str(frequencyRevBiBlock[tmp_block_binary_reverse])+','+ \
@@ -86,7 +89,7 @@ def saveAllResult(taskfilenameprefix,unique_revBiblock,frequencyRevBiBlock,cycle
 if __name__ == "__main__":
     # taskfilenameprefix="/home/shaojiemike/blockFrequency/tensorflow_41Gdir_00all_skip_2"
     # taskfilenameprefix="/home/shaojiemike/blockFrequency/tensorflow_13G_part_skip_2"
-    taskfilenameprefix="/home/shaojiemike/blockFrequency/tensorflow_test_5"
+    taskfilenameprefix="/home/shaojiemike/blockFrequency/tensorflow_test_100"
     taskfilenamesubfix="log"
     filename="{}.{}".format(taskfilenameprefix,taskfilenamesubfix)
     unique_revBiblock=set()
@@ -94,4 +97,4 @@ if __name__ == "__main__":
     cyclesRevBiBlock = defaultdict(int)
     readPartFile(unique_revBiblock,frequencyRevBiBlock,cyclesRevBiBlock)
     print("blockSize {} {}".format(len(unique_revBiblock),len(frequencyRevBiBlock)))
-    # saveAllResult(taskfilenameprefix,unique_revBiblock,frequencyRevBiBlock,cyclesRevBiBlock)
+    saveAllResult(taskfilenameprefix,unique_revBiblock,frequencyRevBiBlock,cyclesRevBiBlock)
