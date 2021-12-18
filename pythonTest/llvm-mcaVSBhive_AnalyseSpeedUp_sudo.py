@@ -105,7 +105,7 @@ def BHiveInputDel0x(block):
     return input2word
 
 def calculateAccuracy(accurateCycles,predictionCycles):
-    if accurateCycles == -1 or predictionCycles == -1 or accurateCycles == 0:
+    if int(accurateCycles) == -1 or int(predictionCycles) == -1 or int(accurateCycles) == 0:
         return 0
     else:
         # print("{} {}".format(accurateCycles,predictionCycles))
@@ -138,7 +138,7 @@ def paralleReadProcess(rank,password, startFileLine,endFileLine,unique_revBibloc
     llvmmcaCyclesRevBiBlock_Queue.put(llvmmcaCyclesRevBiBlock)
     BhiveCyclesRevBiBlock_Queue.put(BhiveCyclesRevBiBlock)
     accuracy_Queue.put(accuracy)
-    print("MPI Process end {}~{}".format(startFileLine,endFileLine))
+    print("MPI Process end {:2d} {}~{}".format(rank,startFileLine,endFileLine))
 
 def readPartFile(password, unique_revBiblock,frequencyRevBiBlock,llvmmcaCyclesRevBiBlock,BhiveCyclesRevBiBlock,accuracy):
     # print(filename)
@@ -168,7 +168,7 @@ def readPartFile(password, unique_revBiblock,frequencyRevBiBlock,llvmmcaCyclesRe
     for i in range(ProcessNum):
         startFileLine=int(i*num_file/ProcessNum)
         endFileLine=int((i+1)*num_file/ProcessNum)
-        print("MPI Process Start {}~{}".format(startFileLine,endFileLine))
+        print("MPI Process Start {:2d} {}~{}".format(i,startFileLine,endFileLine))
         p = Process(target=paralleReadProcess, args=(i,password, startFileLine,endFileLine,unique_revBiblock_Queue,frequencyRevBiBlock_Queue,llvmmcaCyclesRevBiBlock_Queue,BhiveCyclesRevBiBlock_Queue,accuracy_Queue))
         p.start()
 
