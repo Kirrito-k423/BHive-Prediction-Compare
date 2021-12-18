@@ -12,7 +12,7 @@ from multiprocessing import Process, Queue
 
 
 BHiveCount=10000
-ProcessNum=4
+ProcessNum=40
 
 
 def LLVM_mca(password,input):
@@ -218,9 +218,9 @@ if __name__ == "__main__":
     global filename
     print("请输入sudo密码")
     password=input("password:")
-    # taskfilenameprefix="/home/shaojiemike/blockFrequency/tensorflow_41Gdir_00all_skip_2"
+    taskfilenameprefix="/home/shaojiemike/blockFrequency/tensorflow_41Gdir_00all_skip_2"
     # taskfilenameprefix="/home/shaojiemike/blockFrequency/tensorflow_13G_part_skip_2"
-    taskfilenameprefix="/home/shaojiemike/blockFrequency/tensorflow_test_5"
+    # taskfilenameprefix="/home/shaojiemike/blockFrequency/tensorflow_test_5"
     taskfilenamesubfix="log"
     filename="{}.{}".format(taskfilenameprefix,taskfilenamesubfix)
     unique_revBiblock=set()
