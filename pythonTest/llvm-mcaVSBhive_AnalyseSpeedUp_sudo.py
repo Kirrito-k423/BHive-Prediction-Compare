@@ -12,6 +12,7 @@ from multiprocessing import Process, Queue
 
 
 BHiveCount=10000
+ProcessNum=4
 
 
 def LLVM_mca(password,input):
@@ -109,7 +110,8 @@ def calculateAccuracy(accurateCycles,predictionCycles):
         return 0
     else:
         # print("{} {}".format(accurateCycles,predictionCycles))
-        return int(predictionCycles)/int(accurateCycles)
+        gap=abs(int(predictionCycles)-int(accurateCycles))
+        return int(gap)/int(accurateCycles) # accuracy variable is error
 
 def paralleReadProcess(rank,password, startFileLine,endFileLine,unique_revBiblock_Queue,frequencyRevBiBlock_Queue,llvmmcaCyclesRevBiBlock_Queue,BhiveCyclesRevBiBlock_Queue,accuracy_Queue):
     print("MPI Process Start {:2d} {}~{}".format(rank,startFileLine,endFileLine))
@@ -154,11 +156,10 @@ def readPartFile(password, unique_revBiblock,frequencyRevBiBlock,llvmmcaCyclesRe
     #         frequencyRevBiBlock[block] += int(num)
     #         cyclesRevBiBlock[block] = BHive(BHiveInput(block))
     #         line = f.readline()
-    global num_file
+    global num_file,ProcessNum
     fread=open(filename, 'r')
     num_file = sum([1 for i in open(filename, "r")])
     fread.close() 
-    ProcessNum=40
     unique_revBiblock_Queue =Queue()
     frequencyRevBiBlock_Queue = Queue()
     llvmmcaCyclesRevBiBlock_Queue=Queue()
@@ -172,9 +173,9 @@ def readPartFile(password, unique_revBiblock,frequencyRevBiBlock,llvmmcaCyclesRe
         p = Process(target=paralleReadProcess, args=(i,password, startFileLine,endFileLine,unique_revBiblock_Queue,frequencyRevBiBlock_Queue,llvmmcaCyclesRevBiBlock_Queue,BhiveCyclesRevBiBlock_Queue,accuracy_Queue))
         p.start()
 
-    while unique_revBiblock_Queue.qsize()<40:
+    while unique_revBiblock_Queue.qsize()<ProcessNum:
         print("QueueNum : {}".format(unique_revBiblock_Queue.qsize()))
-        time.sleep(1)
+        time.sleep(5)
     # for i in tqdm(range(ProcessNum)):
     for i in range(ProcessNum):
         print("MPISum rank : {}, blockNum : {},leftQueueNum : {}".format(i,len(unique_revBiblock),unique_revBiblock_Queue.qsize()))
@@ -210,16 +211,16 @@ def saveAllResult(taskfilenameprefix,unique_revBiblock,frequencyRevBiBlock,llvmm
             unvalidNum+=1
     fwriteblockfreq.writelines("validTotalNum & unvalidBlockNum :"+str(validNum)+" "+str(unvalidNum)+"\n")
     fwriteblockfreq.writelines("avg accuracy is "+str(totalAccuracy/validNum))
-    print("avg accuracy is "+str(totalAccuracy/validNum)) 
+    print("avg error rate is "+str(totalAccuracy/validNum)) 
     fwriteblockfreq.close()
 
 if __name__ == "__main__":
     global filename
     print("请输入sudo密码")
     password=input("password:")
-    taskfilenameprefix="/home/shaojiemike/blockFrequency/tensorflow_41Gdir_00all_skip_2"
+    # taskfilenameprefix="/home/shaojiemike/blockFrequency/tensorflow_41Gdir_00all_skip_2"
     # taskfilenameprefix="/home/shaojiemike/blockFrequency/tensorflow_13G_part_skip_2"
-    # taskfilenameprefix="/home/shaojiemike/blockFrequency/tensorflow_test_100"
+    taskfilenameprefix="/home/shaojiemike/blockFrequency/tensorflow_test_5"
     taskfilenamesubfix="log"
     filename="{}.{}".format(taskfilenameprefix,taskfilenamesubfix)
     unique_revBiblock=set()
