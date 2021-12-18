@@ -112,6 +112,7 @@ def calculateAccuracy(accurateCycles,predictionCycles):
         return int(predictionCycles)/int(accurateCycles)
 
 def paralleReadProcess(rank,password, startFileLine,endFileLine,unique_revBiblock_Queue,frequencyRevBiBlock_Queue,llvmmcaCyclesRevBiBlock_Queue,BhiveCyclesRevBiBlock_Queue,accuracy_Queue):
+    print("MPI Process Start {:2d} {}~{}".format(rank,startFileLine,endFileLine))
     fread=open(filename, 'r')
     unique_revBiblock=set()
     frequencyRevBiBlock = defaultdict(int)
@@ -168,11 +169,15 @@ def readPartFile(password, unique_revBiblock,frequencyRevBiBlock,llvmmcaCyclesRe
     for i in range(ProcessNum):
         startFileLine=int(i*num_file/ProcessNum)
         endFileLine=int((i+1)*num_file/ProcessNum)
-        print("MPI Process Start {:2d} {}~{}".format(i,startFileLine,endFileLine))
         p = Process(target=paralleReadProcess, args=(i,password, startFileLine,endFileLine,unique_revBiblock_Queue,frequencyRevBiBlock_Queue,llvmmcaCyclesRevBiBlock_Queue,BhiveCyclesRevBiBlock_Queue,accuracy_Queue))
         p.start()
 
-    for i in tqdm(range(ProcessNum)):
+    while unique_revBiblock_Queue.qsize()<40:
+        print("QueueNum : {}".format(unique_revBiblock_Queue.qsize()))
+        time.sleep(1)
+    # for i in tqdm(range(ProcessNum)):
+    for i in range(ProcessNum):
+        print("MPISum rank : {}, blockNum : {},leftQueueNum : {}".format(i,len(unique_revBiblock),unique_revBiblock_Queue.qsize()))
         unique_revBiblock=unique_revBiblock.union(unique_revBiblock_Queue.get())
         frequencyRevBiBlock.update(frequencyRevBiBlock_Queue.get())
         llvmmcaCyclesRevBiBlock.update(llvmmcaCyclesRevBiBlock_Queue.get())
