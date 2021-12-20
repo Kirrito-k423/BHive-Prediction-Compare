@@ -235,7 +235,7 @@ def saveAllResult(taskfilenameprefix,unique_revBiblock,frequencyRevBiBlock,OSACA
     validNum=0
     unvalidNum=0
     totalaccuracyMax=0.0
-    totalAccuracyCP=0.0
+    totalaccuracyCP=0.0
     lineNum=0
     for tmp_block_binary_reverse in unique_revBiblock:
         lineNum+=1
@@ -264,10 +264,10 @@ def saveAllResult(taskfilenameprefix,unique_revBiblock,frequencyRevBiBlock,OSACA
                 str(accuracyMax[tmp_block_binary_reverse])+' _ '+
                 str(accuracyCP[tmp_block_binary_reverse])+" wrong\n")
     fwriteblockfreq.writelines("validTotalNum & unvalidBlockNum :"+str(validNum)+" "+str(unvalidNum)+"\n")
-    fwriteblockfreq.writelines("avg accuracyMax is "+str(totalaccuracyMax/validNum))
-    fwriteblockfreq.writelines("avg accuracyCP is "+str(totalaccuracyCP/validNum))
-    print("avg Max error rate is "+str(totalaccuracyMax/validNum)) 
-    print("avg CP error rate is "+str(totalaccuracyCP/validNum)) 
+    fwriteblockfreq.writelines("avg accuracyMax is "+str(totalaccuracyMax/validNum)+"\n")
+    fwriteblockfreq.writelines("avg accuracyCP is "+str(totalaccuracyCP/validNum)+"\n")
+    print("avg Max error rate is "+str(totalaccuracyMax/validNum)+"\n") 
+    print("avg CP error rate is "+str(totalaccuracyCP/validNum)+"\n") 
     fwriteblockfreq.close()
     wrongResultFile.close()
 
@@ -275,9 +275,9 @@ if __name__ == "__main__":
     global filename
     print("请输入sudo密码")
     password=input("password:")
-    # taskfilenameprefix="/home/shaojiemike/blockFrequency/tensorflow_41Gdir_00all_skip_2"
+    taskfilenameprefix="/home/shaojiemike/blockFrequency/tensorflow_41Gdir_00all_skip_2"
     # taskfilenameprefix="/home/shaojiemike/blockFrequency/tensorflow_13G_part_skip_2"
-    taskfilenameprefix="/home/shaojiemike/blockFrequency/tensorflow_test_100"
+    # taskfilenameprefix="/home/shaojiemike/blockFrequency/tensorflow_test_100"
     taskfilenamesubfix="log"
     filename="{}.{}".format(taskfilenameprefix,taskfilenamesubfix)
     unique_revBiblock=set()
