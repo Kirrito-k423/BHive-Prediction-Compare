@@ -269,7 +269,7 @@ def readPartFile(password, unique_revBiblock,frequencyRevBiBlock,OSACAmaxCyclesR
 
 def saveAllResult(taskfilenameprefix,unique_revBiblock,frequencyRevBiBlock,OSACAmaxCyclesRevBiBlock,OSACACPCyclesRevBiBlock,BhiveCyclesRevBiBlock,accuracyMax,accuracyCP,llvmmcaCyclesRevBiBlock,accuracyLLVM):
     writeFilename="{}_count{}_OSACAVSLLVMVSBHive.csv".format(taskfilenameprefix,BHiveCount)
-    wrongResultFilename="{}_count{}._OSACAVSLLVMVSBHive_wrongResult.csv".format(taskfilenameprefix,BHiveCount)
+    wrongResultFilename="{}_count{}_OSACAVSLLVMVSBHive_wrongResult.csv".format(taskfilenameprefix,BHiveCount)
     fwriteblockfreq = open(writeFilename, "w")
     wrongResultFile = open(wrongResultFilename, "w")
     validNum=0
@@ -280,32 +280,35 @@ def saveAllResult(taskfilenameprefix,unique_revBiblock,frequencyRevBiBlock,OSACA
     lineNum=0
     for tmp_block_binary_reverse in unique_revBiblock:
         lineNum+=1
-        if accuracyMax[tmp_block_binary_reverse] != 0 and accuracyCP[tmp_block_binary_reverse] != 0 and totalAccuracyLLVM[tmp_block_binary_reverse] != 0:
+        if accuracyMax[tmp_block_binary_reverse] != 0 and accuracyCP[tmp_block_binary_reverse] != 0 and accuracyLLVM[tmp_block_binary_reverse] != 0:
             validNum+=frequencyRevBiBlock[tmp_block_binary_reverse]
             totalAccuracyLLVM+=frequencyRevBiBlock[tmp_block_binary_reverse]*accuracyLLVM[tmp_block_binary_reverse]
             totalaccuracyMax+=frequencyRevBiBlock[tmp_block_binary_reverse]*accuracyMax[tmp_block_binary_reverse]
             totalaccuracyCP+=frequencyRevBiBlock[tmp_block_binary_reverse]*accuracyCP[tmp_block_binary_reverse]
-            fwriteblockfreq.writelines("{:5d} ".format(lineNum)+tmp_block_binary_reverse+','+str(frequencyRevBiBlock[tmp_block_binary_reverse])+','+ \
+            fwriteblockfreq.writelines("{:5d} ".format(lineNum)+','+tmp_block_binary_reverse+','+str(frequencyRevBiBlock[tmp_block_binary_reverse])+','+ \
                 str(OSACAmaxCyclesRevBiBlock[tmp_block_binary_reverse])+','+
                 str(OSACACPCyclesRevBiBlock[tmp_block_binary_reverse])+','+
                 str(llvmmcaCyclesRevBiBlock[tmp_block_binary_reverse])+','+
                 str(BhiveCyclesRevBiBlock[tmp_block_binary_reverse])+','+
+                str(accuracyLLVM[tmp_block_binary_reverse])+","+
                 str(accuracyMax[tmp_block_binary_reverse])+','+
                 str(accuracyCP[tmp_block_binary_reverse])+"\n")
         else:
             unvalidNum+=1
-            fwriteblockfreq.writelines("{:5d} ".format(lineNum)+tmp_block_binary_reverse+','+str(frequencyRevBiBlock[tmp_block_binary_reverse])+','+ \
+            fwriteblockfreq.writelines("{:5d} ".format(lineNum)+','+tmp_block_binary_reverse+','+str(frequencyRevBiBlock[tmp_block_binary_reverse])+','+ \
                 str(OSACAmaxCyclesRevBiBlock[tmp_block_binary_reverse])+','+
                 str(OSACACPCyclesRevBiBlock[tmp_block_binary_reverse])+','+
                 str(llvmmcaCyclesRevBiBlock[tmp_block_binary_reverse])+','+
                 str(BhiveCyclesRevBiBlock[tmp_block_binary_reverse])+','+
+                str(accuracyLLVM[tmp_block_binary_reverse])+","+
                 str(accuracyMax[tmp_block_binary_reverse])+','+
                 str(accuracyCP[tmp_block_binary_reverse])+",wrong\n")
-            wrongResultFile.writelines("{:5d} ".format(lineNum)+tmp_block_binary_reverse+','+str(frequencyRevBiBlock[tmp_block_binary_reverse])+','+ \
+            wrongResultFile.writelines("{:5d} ".format(lineNum)+','+tmp_block_binary_reverse+','+str(frequencyRevBiBlock[tmp_block_binary_reverse])+','+ \
                 str(OSACAmaxCyclesRevBiBlock[tmp_block_binary_reverse])+','+
                 str(OSACACPCyclesRevBiBlock[tmp_block_binary_reverse])+','+
                 str(llvmmcaCyclesRevBiBlock[tmp_block_binary_reverse])+','+
                 str(BhiveCyclesRevBiBlock[tmp_block_binary_reverse])+','+
+                str(accuracyLLVM[tmp_block_binary_reverse])+","+
                 str(accuracyMax[tmp_block_binary_reverse])+','+
                 str(accuracyCP[tmp_block_binary_reverse])+",wrong\n")
     fwriteblockfreq.writelines("validTotalNum & unvalidBlockNum :"+str(validNum)+" "+str(unvalidNum)+"\n")
@@ -322,9 +325,9 @@ if __name__ == "__main__":
     global filename
     print("请输入sudo密码")
     password=input("password:")
-    taskfilenameprefix="/home/shaojiemike/blockFrequency/tensorflow_41Gdir_00all_skip_2"
+    # taskfilenameprefix="/home/shaojiemike/blockFrequency/tensorflow_41Gdir_00all_skip_2"
     # taskfilenameprefix="/home/shaojiemike/blockFrequency/tensorflow_13G_part_skip_2"
-    # taskfilenameprefix="/home/shaojiemike/blockFrequency/tensorflow_test_100"
+    taskfilenameprefix="/home/shaojiemike/blockFrequency/tensorflow_test_100"
     taskfilenamesubfix="log"
     filename="{}.{}".format(taskfilenameprefix,taskfilenamesubfix)
     unique_revBiblock=set()
