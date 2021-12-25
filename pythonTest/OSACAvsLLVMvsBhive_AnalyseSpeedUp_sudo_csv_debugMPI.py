@@ -44,6 +44,19 @@ def saveOSACAInput2File(InputAsmList,rank):
     fwriteblockfreq.close()
     return writeFilename
 
+def debugMPISaveLog2NewFile(inputLineStr,rank):
+    writeFilename="{}/tmpOSACAfiles/{}.debugMPISaveLog2FileRank{}".format(taskfilePath,taskfilenameprefixWithoutPath,rank)
+    fwrite = open(writeFilename, "w")
+    fwrite.writelines(inputLineStr)
+    fwrite.close()
+    return writeFilename
+def debugMPISaveLog2FileBehind(inputLineStr,rank):
+    writeFilename="{}/tmpOSACAfiles/{}.debugMPISaveLog2FileRank{}".format(taskfilePath,taskfilenameprefixWithoutPath,rank)
+    fwrite = open(writeFilename, "a+")
+    fwrite.writelines(inputLineStr)
+    fwrite.close()
+    return writeFilename
+
 def capstoneList(string):
     CODE = bytes.fromhex(string)
     md = Cs(CS_ARCH_ARM64, CS_MODE_LITTLE_ENDIAN)
@@ -174,9 +187,13 @@ def paralleReadProcess(rank,password, startFileLine,endFileLine,unique_revBibloc
     accuracyLLVM = defaultdict(float)
     accuracyMax = defaultdict(float)
     accuracyCP = defaultdict(float)
+    debugMPISaveLog2NewFile("start {} {}\n".format(startFileLine,endFileLine),rank)
+    debugNum=0
     for line in tqdm(fread.readlines()[startFileLine:endFileLine],total=endFileLine-startFileLine,desc=str("{:2d}".format(rank))):
     # for line in fread:
         # print("rank{}".format(rank))
+        debugMPISaveLog2FileBehind("line {}/{}\n".format(debugNum,endFileLine-startFileLine),rank)
+        debugNum+=1
         block=re.search('^(.*),',line).group(1)
         num=re.search(',(.*)$',line).group(1)
         unique_revBiblock.add(block)
@@ -195,6 +212,7 @@ def paralleReadProcess(rank,password, startFileLine,endFileLine,unique_revBibloc
         # print("0rank{}".format(rank))
     fread.close() 
     # print("1rank{}".format(rank))
+    debugMPISaveLog2FileBehind("end for",rank)
     unique_revBiblock_Queue.put(unique_revBiblock)
     frequencyRevBiBlock_Queue.put(frequencyRevBiBlock)
     # print("2rank{}".format(rank))
@@ -206,6 +224,7 @@ def paralleReadProcess(rank,password, startFileLine,endFileLine,unique_revBibloc
     accuracyLLVM_Queue.put(accuracyLLVM)
     accuracyMax_Queue.put(accuracyMax)
     accuracyCP_Queue.put(accuracyCP)
+    debugMPISaveLog2FileBehind("end {}\n".format(rank),2333)
     print("MPI Process end {:2d} {}~{}".format(rank,startFileLine,endFileLine))
 
 def readPartFile(password, unique_revBiblock,frequencyRevBiBlock,OSACAmaxCyclesRevBiBlock,OSACACPCyclesRevBiBlock,BhiveCyclesRevBiBlock,accuracyMax,accuracyCP,llvmmcaCyclesRevBiBlock,accuracyLLVM):
@@ -235,6 +254,7 @@ def readPartFile(password, unique_revBiblock,frequencyRevBiBlock,OSACAmaxCyclesR
     accuracyMax_Queue=Queue()
     accuracyCP_Queue=Queue()
 
+    debugMPISaveLog2NewFile("test MPI end\n",2333)
 
     for i in range(ProcessNum):
         startFileLine=int(i*num_file/ProcessNum)
@@ -340,9 +360,9 @@ if __name__ == "__main__":
     password=input("password:")
     taskfilePath="/home/shaojiemike/blockFrequency"
     checkFile(taskfilePath)
-    # taskfilenameprefixWithoutPath="tensorflow_test_100"
+    taskfilenameprefixWithoutPath="tensorflow_test_100"
     # taskfilenameprefixWithoutPath="clang_harness_00all_skip_2"
-    taskfilenameprefixWithoutPath="tensorflow_41Gdir_00all_skip_2"
+    # taskfilenameprefixWithoutPath="tensorflow_41Gdir_00all_skip_2"
     # taskfilenameprefixWithoutPath="MM_median_all_skip_2"
     # taskfilenameprefixWithoutPath="gzip_full_skip_2"
     # taskfilenameprefixWithoutPath="redis_r1000000_n2000000_P16_all_skip_2"
