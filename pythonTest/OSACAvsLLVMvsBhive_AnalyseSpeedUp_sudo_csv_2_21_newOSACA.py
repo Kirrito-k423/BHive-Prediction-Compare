@@ -13,10 +13,10 @@ from multiprocessing import Process, Queue
 OSACAPath="/home/shaojiemike/github/OSACA-feature-tsv110/newOSACA/bin/osaca "
 saveInfo="0221newOSACA"
 BHiveCount=10000
-ProcessNum=40
+ProcessNum=35
 
-def OSACA(inputFile,maxOrCP):
-    val=os.popen(OSACAPath+' --arch TSV110 '+str(inputFile))#  -timeline -show-encoding -all-stats -all-views
+def OSACA(password,inputFile,maxOrCP):
+    val=os.popen('echo '+password+' | sudo -S '+OSACAPath+' --arch TSV110 '+str(inputFile))#  -timeline -show-encoding -all-stats -all-views
     list = val.readlines()
     for listObj in list[20:]:
         # print(listObj)
@@ -110,7 +110,10 @@ def BHive(password,input,showinput,trytime):
     #     print("Attention!")
     # sys.stdout.flush()
     # print(list[-1])
-    regexResult=re.search("core cyc: ([0-9]*)",list[-1])
+    if list is None or len(list)==0:
+        regexResult=None
+    else:
+        regexResult=re.search("core cyc: ([0-9]*)",list[-1])
     if regexResult:
         resultCycle=regexResult.group(1)
         # print(resultCycle)
@@ -187,8 +190,8 @@ def paralleReadProcess(rank,password, startFileLine,endFileLine,unique_revBibloc
         # print("         rank{}:block{}______{}".format(rank,block,BhiveCyclesRevBiBlock[block]))
         llvmmcaCyclesRevBiBlock[block] = LLVM_mca(password,capstone(capstoneInput(block)))
         OSACAInput=saveOSACAInput2File(capstoneList(capstoneInput(block)),rank)
-        OSACAmaxCyclesRevBiBlock[block] = OSACA(OSACAInput,"max")
-        OSACACPCyclesRevBiBlock[block] = OSACA(OSACAInput,"CP")
+        OSACAmaxCyclesRevBiBlock[block] = OSACA(password,OSACAInput,"max")
+        OSACACPCyclesRevBiBlock[block] = OSACA(password,OSACAInput,"CP")
         # print("             rank{}:block{}______{}".format(rank,block,OSACAmaxCyclesRevBiBlock[block]))
         accuracyLLVM[block]= calculateAccuracyLLVM(BhiveCyclesRevBiBlock[block],llvmmcaCyclesRevBiBlock[block])
         accuracyMax[block]= calculateAccuracyOSACA(BhiveCyclesRevBiBlock[block],OSACAmaxCyclesRevBiBlock[block],rank)
@@ -342,14 +345,11 @@ if __name__ == "__main__":
     taskfilePath="/home/shaojiemike/blockFrequency"
     checkFile(taskfilePath)
     # taskfilenameprefixWithoutPath="tensorflow_test_100"
-    taskfilenameprefixWithoutPath="clang_harness_00all_skip_2"
+    # taskfilenameprefixWithoutPath="clang_harness_00all_skip_2"
     # taskfilenameprefixWithoutPath="tensorflow_41Gdir_00all_skip_2"
     # taskfilenameprefixWithoutPath="MM_median_all_skip_2"
-    # taskfilenameprefixWithoutPath="gzip_full_skip_2"
-    # taskfilenameprefixWithoutPath="redis_r1000000_n2000000_P16_all_skip_2"
-    # taskfilenameprefix="/home/shaojiemike/blockFrequency/clang_harness_00all_skip_2"
-    # taskfilenameprefix="/home/shaojiemike/blockFrequency/tensorflow_41Gdir_00all_skip_2"
-    # taskfilenameprefix="/home/shaojiemike/blockFrequency/tensorflow_13G_part_skip_2"
+    # taskfilenameprefixWithoutPath="Gzip_all_skip_2"
+    taskfilenameprefixWithoutPath="redis_r1000000_n2000000_P16_all_skip_2"
     taskfilenameprefix="{}/{}".format(taskfilePath,taskfilenameprefixWithoutPath)
     taskfilenamesubfix="log"
 
