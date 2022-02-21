@@ -360,7 +360,8 @@ if __name__ == "__main__":
     password=input("password:")
     taskfilePath="/home/shaojiemike/blockFrequency"
     checkFile(taskfilePath)
-    taskfilenameprefixWithoutPath="tensorflow_test_100"
+    # taskfilenameprefixWithoutPath="tensorflow_test_100"
+    taskfilenameprefixWithoutPath="Gzip_all_skip_2"
     # taskfilenameprefixWithoutPath="clang_harness_00all_skip_2"
     # taskfilenameprefixWithoutPath="tensorflow_41Gdir_00all_skip_2"
     # taskfilenameprefixWithoutPath="MM_median_all_skip_2"

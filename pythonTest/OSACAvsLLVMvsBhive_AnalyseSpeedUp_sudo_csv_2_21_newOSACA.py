@@ -10,12 +10,13 @@ import sys
 from capstone import *
 from multiprocessing import Process, Queue
 
-
+OSACAPath="/home/shaojiemike/github/OSACA-feature-tsv110/newOSACA/bin/osaca "
+saveInfo="0221newOSACA"
 BHiveCount=10000
 ProcessNum=40
 
 def OSACA(inputFile,maxOrCP):
-    val=os.popen('/home/shaojiemike/test/OSACA/osacaEnv/bin/osaca --arch TSV110 '+str(inputFile))#  -timeline -show-encoding -all-stats -all-views
+    val=os.popen(OSACAPath+' --arch TSV110 '+str(inputFile))#  -timeline -show-encoding -all-stats -all-views
     list = val.readlines()
     for listObj in list[20:]:
         # print(listObj)
@@ -37,7 +38,7 @@ def OSACA(inputFile,maxOrCP):
     return -1
 
 def saveOSACAInput2File(InputAsmList,rank):
-    writeFilename="{}/tmpOSACAfiles/{}.OSACAInputTmpAsmBlockRank{}".format(taskfilePath,taskfilenameprefixWithoutPath,rank)
+    writeFilename="{}/tmpOSACAfiles/{}.{}_OSACAInputTmpAsmBlockRank{}".format(taskfilePath,taskfilenameprefixWithoutPath,saveInfo,rank)
     fwriteblockfreq = open(writeFilename, "w")
     for tmp_InputAsmList in InputAsmList:
         fwriteblockfreq.writelines(tmp_InputAsmList)
@@ -268,8 +269,8 @@ def readPartFile(password, unique_revBiblock,frequencyRevBiBlock,OSACAmaxCyclesR
 
 
 def saveAllResult(taskfilenameprefix,unique_revBiblock,frequencyRevBiBlock,OSACAmaxCyclesRevBiBlock,OSACACPCyclesRevBiBlock,BhiveCyclesRevBiBlock,accuracyMax,accuracyCP,llvmmcaCyclesRevBiBlock,accuracyLLVM):
-    writeFilename="{}_count{}_OSACAVSLLVMVSBHive.csv".format(taskfilenameprefix,BHiveCount)
-    wrongResultFilename="{}_count{}_OSACAVSLLVMVSBHive_wrongResult.csv".format(taskfilenameprefix,BHiveCount)
+    writeFilename="{}_count{}_{}_OSACAVSLLVMVSBHive.csv".format(taskfilenameprefix,BHiveCount,saveInfo)
+    wrongResultFilename="{}_count{}_{}_OSACAVSLLVMVSBHive_wrongResult.csv".format(taskfilenameprefix,BHiveCount,saveInfo)
     fwriteblockfreq = open(writeFilename, "w")
     wrongResultFile = open(wrongResultFilename, "w")
     validNum=0
