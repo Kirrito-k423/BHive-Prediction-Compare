@@ -11,7 +11,7 @@ from capstone import *
 from multiprocessing import Process, Queue
 
 OSACAPath="/home/shaojiemike/github/OSACA-feature-tsv110/newOSACA/bin/osaca "
-saveInfo="0221newOSACA"
+saveInfo="0222newOSACAagain"
 BHiveCount=10000
 ProcessNum=35
 
@@ -213,22 +213,11 @@ def paralleReadProcess(rank,password, startFileLine,endFileLine,unique_revBibloc
     print("MPI Process end {:2d} {}~{}".format(rank,startFileLine,endFileLine))
 
 def readPartFile(password, unique_revBiblock,frequencyRevBiBlock,OSACAmaxCyclesRevBiBlock,OSACACPCyclesRevBiBlock,BhiveCyclesRevBiBlock,accuracyMax,accuracyCP,llvmmcaCyclesRevBiBlock,accuracyLLVM):
-    # print(filename)
-    # with open(filename, 'r') as f:#with语句自动调用close()方法
-    #     line = f.readline()
-    #     while line:
-    #         # print(re.search('^(.*),',line).group(1))
-    #         # print(re.search(',(.*)$',line).group(1))
-    #         block=re.search('^(.*),',line).group(1)
-    #         num=re.search(',(.*)$',line).group(1)
-    #         unique_revBiblock.add(block)
-    #         frequencyRevBiBlock[block] += int(num)
-    #         cyclesRevBiBlock[block] = BHive(BHiveInput(block))
-    #         line = f.readline()
     global num_file,ProcessNum
     fread=open(filename, 'r')
     num_file = sum([1 for i in open(filename, "r")])
     fread.close() 
+
     unique_revBiblock_Queue =Queue()
     frequencyRevBiBlock_Queue = Queue()
     llvmmcaCyclesRevBiBlock_Queue=Queue()
@@ -238,7 +227,6 @@ def readPartFile(password, unique_revBiblock,frequencyRevBiBlock,OSACAmaxCyclesR
     accuracyLLVM_Queue=Queue()
     accuracyMax_Queue=Queue()
     accuracyCP_Queue=Queue()
-
 
     for i in range(ProcessNum):
         startFileLine=int(i*num_file/ProcessNum)
@@ -344,26 +332,23 @@ if __name__ == "__main__":
     password=input("password:")
     taskfilePath="/home/shaojiemike/blockFrequency"
     checkFile(taskfilePath)
-    # taskfilenameprefixWithoutPath="tensorflow_test_100"
-    # taskfilenameprefixWithoutPath="clang_harness_00all_skip_2"
-    # taskfilenameprefixWithoutPath="tensorflow_41Gdir_00all_skip_2"
-    # taskfilenameprefixWithoutPath="MM_median_all_skip_2"
-    # taskfilenameprefixWithoutPath="Gzip_all_skip_2"
-    taskfilenameprefixWithoutPath="redis_r1000000_n2000000_P16_all_skip_2"
-    taskfilenameprefix="{}/{}".format(taskfilePath,taskfilenameprefixWithoutPath)
-    taskfilenamesubfix="log"
+    taskList=["tensorflow_test_100","clang_harness_00all_skip_2","tensorflow_41Gdir_00all_skip_2","MM_median_all_skip_2","Gzip_all_skip_2","redis_r1000000_n2000000_P16_all_skip_2"]
+    for taskI in taskList:
+        taskfilenameprefixWithoutPath=taskI
+        taskfilenameprefix="{}/{}".format(taskfilePath,taskfilenameprefixWithoutPath)
+        taskfilenamesubfix="log"
+        filename="{}.{}".format(taskfilenameprefix,taskfilenamesubfix)
 
+        unique_revBiblock=set()
+        frequencyRevBiBlock = defaultdict(int)
+        llvmmcaCyclesRevBiBlock = defaultdict(int)
+        OSACAmaxCyclesRevBiBlock = defaultdict(int)
+        OSACACPCyclesRevBiBlock = defaultdict(int)
+        BhiveCyclesRevBiBlock = defaultdict(int)
+        accuracyLLVM = defaultdict(float)
+        accuracyMax = defaultdict(float)
+        accuracyCP = defaultdict(float)
 
-    filename="{}.{}".format(taskfilenameprefix,taskfilenamesubfix)
-    unique_revBiblock=set()
-    frequencyRevBiBlock = defaultdict(int)
-    llvmmcaCyclesRevBiBlock = defaultdict(int)
-    OSACAmaxCyclesRevBiBlock = defaultdict(int)
-    OSACACPCyclesRevBiBlock = defaultdict(int)
-    BhiveCyclesRevBiBlock = defaultdict(int)
-    accuracyLLVM = defaultdict(float)
-    accuracyMax = defaultdict(float)
-    accuracyCP = defaultdict(float)
-    unique_revBiblock=readPartFile(password, unique_revBiblock,frequencyRevBiBlock,OSACAmaxCyclesRevBiBlock,OSACACPCyclesRevBiBlock,BhiveCyclesRevBiBlock,accuracyMax,accuracyCP,llvmmcaCyclesRevBiBlock,accuracyLLVM)
-    print("blockSize {} {}".format(len(unique_revBiblock),len(frequencyRevBiBlock)))
-    saveAllResult(taskfilenameprefix,unique_revBiblock,frequencyRevBiBlock,OSACAmaxCyclesRevBiBlock,OSACACPCyclesRevBiBlock,BhiveCyclesRevBiBlock,accuracyMax,accuracyCP,llvmmcaCyclesRevBiBlock,accuracyLLVM)
+        unique_revBiblock=readPartFile(password, unique_revBiblock,frequencyRevBiBlock,OSACAmaxCyclesRevBiBlock,OSACACPCyclesRevBiBlock,BhiveCyclesRevBiBlock,accuracyMax,accuracyCP,llvmmcaCyclesRevBiBlock,accuracyLLVM)
+        print("blockSize {} {}".format(len(unique_revBiblock),len(frequencyRevBiBlock)))
+        saveAllResult(taskfilenameprefix,unique_revBiblock,frequencyRevBiBlock,OSACAmaxCyclesRevBiBlock,OSACACPCyclesRevBiBlock,BhiveCyclesRevBiBlock,accuracyMax,accuracyCP,llvmmcaCyclesRevBiBlock,accuracyLLVM)
