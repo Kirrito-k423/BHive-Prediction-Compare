@@ -18,24 +18,30 @@ ProcessNum=35
 def OSACA(password,inputFile,maxOrCP):
     val=os.popen('echo '+password+' | sudo -S '+OSACAPath+' --arch TSV110 '+str(inputFile))#  -timeline -show-encoding -all-stats -all-views
     list = val.readlines()
-    for listObj in list[20:]:
-        # print(listObj)
-        regexResult=re.search("max_tp_sum:([.0-9]*),min_tp_sum:([.0-9]*),avg_tp_sum:([.0-9]*),cp_sum:([.0-9]*)",listObj)# 需要修改osaca来有个标记位匹配
+    lineNum=1
+    while lineNum:
+        listObj=list[lineNum]
+        regexResult=re.search("Loop-Carried Dependencies Analysis Report",listObj)
         if regexResult:
-            maxresultCycle=regexResult.group(1)
-            minresultCycle=regexResult.group(2)
-            avgresultCycle=regexResult.group(3)
-            CPresultCycle=regexResult.group(4)
-            # print("before mca {}/{} cycle:{}".format(order,num_file,resultCycle))
-            # print("  maxresultCycle :{}".format(maxresultCycle))
-            if maxOrCP == "max":
-                return maxresultCycle
-            elif maxOrCP == "CP":
-                return CPresultCycle
-            else:
-                return -1
-    # print("  wrong")
-    return -1
+            break
+        lineNum+=1
+    resultLineNum=lineNum-5
+    it=re.finditer("[.0-9]+",list[resultLineNum])
+    resultList=[]
+    for match in it: 
+        resultList.append(float(match.group()))
+    if resultList:
+        LCD=resultList.pop()
+        CP=resultList.pop()
+        Max=max(resultList)
+        if maxOrCP == "max":
+            return Max
+        elif maxOrCP == "CP":
+            return CP
+        else:
+            return -1
+    else:
+        return -1
 
 def saveOSACAInput2File(InputAsmList,rank):
     writeFilename="{}/tmpOSACAfiles/{}.{}_OSACAInputTmpAsmBlockRank{}".format(taskfilePath,taskfilenameprefixWithoutPath,saveInfo,rank)
@@ -264,11 +270,14 @@ def saveAllResult(taskfilenameprefix,unique_revBiblock,frequencyRevBiBlock,OSACA
     wrongResultFilename="{}_count{}_{}_OSACAVSLLVMVSBHive_wrongResult.csv".format(taskfilenameprefix,BHiveCount,saveInfo)
     fwriteblockfreq = open(writeFilename, "w")
     wrongResultFile = open(wrongResultFilename, "w")
+    fwriteblockfreq.writelines("{:5d} ".format(0)+', block_binary, block_frequency, OSACAmax, OSACACP, LLVM-MCA, BHive, accuracyLLVM, accuracyMax, accuracyCP\n')
+    wrongResultFile.writelines("{:5d} ".format(0)+', block_binary, block_frequency, OSACAmax, OSACACP, LLVM-MCA, BHive, accuracyLLVM, accuracyMax, accuracyCP\n')
     validNum=0
     unvalidNum=0
     totalAccuracyLLVM=0.0
     totalaccuracyMax=0.0
     totalaccuracyCP=0.0
+    totalOSACAavg=0.0
     lineNum=0
     for tmp_block_binary_reverse in unique_revBiblock:
         lineNum+=1
@@ -277,6 +286,12 @@ def saveAllResult(taskfilenameprefix,unique_revBiblock,frequencyRevBiBlock,OSACA
             totalAccuracyLLVM+=frequencyRevBiBlock[tmp_block_binary_reverse]*accuracyLLVM[tmp_block_binary_reverse]
             totalaccuracyMax+=frequencyRevBiBlock[tmp_block_binary_reverse]*accuracyMax[tmp_block_binary_reverse]
             totalaccuracyCP+=frequencyRevBiBlock[tmp_block_binary_reverse]*accuracyCP[tmp_block_binary_reverse]
+            count=frequencyRevBiBlock[tmp_block_binary_reverse]
+            OSACAMax=OSACAmaxCyclesRevBiBlock[tmp_block_binary_reverse]
+            OSACACP=OSACACPCyclesRevBiBlock[tmp_block_binary_reverse]
+            realBHive=float(BhiveCyclesRevBiBlock[tmp_block_binary_reverse])
+            tmp=(OSACAMax+OSACACP)/2 * BHiveCount - realBHive
+            totalOSACAavg+=abs(tmp)/realBHive * count
             fwriteblockfreq.writelines("{:5d} ".format(lineNum)+','+tmp_block_binary_reverse+','+str(frequencyRevBiBlock[tmp_block_binary_reverse])+','+ \
                 str(OSACAmaxCyclesRevBiBlock[tmp_block_binary_reverse])+','+
                 str(OSACACPCyclesRevBiBlock[tmp_block_binary_reverse])+','+
@@ -307,9 +322,11 @@ def saveAllResult(taskfilenameprefix,unique_revBiblock,frequencyRevBiBlock,OSACA
     fwriteblockfreq.writelines("avg llvm error rate is "+str(totalAccuracyLLVM/validNum)+"\n")
     fwriteblockfreq.writelines("avg osaca Max error rate is "+str(totalaccuracyMax/validNum)+"\n")
     fwriteblockfreq.writelines("avg osaca CP error rate is "+str(totalaccuracyCP/validNum)+"\n")
+    fwriteblockfreq.writelines("avg osaca avg error rate is "+str(totalOSACAavg/validNum)+"\n")
     print("avg LLVM error rate is "+str(totalAccuracyLLVM/validNum)+"\n") 
     print("avg OSACA Max error rate is "+str(totalaccuracyMax/validNum)+"\n") 
     print("avg OSACA CP error rate is "+str(totalaccuracyCP/validNum)+"\n") 
+    print("avg osaca avg error rate is "+str(totalOSACAavg/validNum)+"\n") 
     fwriteblockfreq.close()
     wrongResultFile.close()
 
@@ -332,7 +349,13 @@ if __name__ == "__main__":
     password=input("password:")
     taskfilePath="/home/shaojiemike/blockFrequency"
     checkFile(taskfilePath)
-    taskList=["tensorflow_test_100","clang_harness_00all_skip_2","tensorflow_41Gdir_00all_skip_2","MM_median_all_skip_2","Gzip_all_skip_2","redis_r1000000_n2000000_P16_all_skip_2"]
+    taskList=["tensorflow_test_100",
+            "tensorflow_test_5",
+            "tensorflow_test_3"]
+            # "clang_harness_00all_skip_2",
+            # "tensorflow_41Gdir_00all_skip_2",
+            # "MM_median_all_skip_2","Gzip_all_skip_2",
+            # "redis_r1000000_n2000000_P16_all_skip_2"]
     for taskI in taskList:
         taskfilenameprefixWithoutPath=taskI
         taskfilenameprefix="{}/{}".format(taskfilePath,taskfilenameprefixWithoutPath)
