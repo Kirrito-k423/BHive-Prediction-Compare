@@ -12,17 +12,18 @@ from multiprocessing import Process, Queue
 import pathlib
 import datetime
 from openpyxl import Workbook
+from openpyxl.chart import BarChart, PieChart, LineChart, Reference
 
 taskfilePath="/home/shaojiemike/blockFrequency"
 taskList={"tensorflow_test_100":"tensorflow_1",
             "tensorflow_test_5":"tensorflow_2",
-            "tensorflow_test_3":"tensorflow_2"}
+            "tensorflow_test_3":"tensorflow_3"}
             # "clang_harness_00all_skip_2":"Clang",
             # "tensorflow_41Gdir_00all_skip_2":"Tensorflow",
             # "MM_median_all_skip_2":"Eigen",
             # "Gzip_all_skip_2":"Gzip",
             # "redis_r1000000_n2000000_P16_all_skip_2":"Redis"}
-excelOutPath = taskfilePath.joinpath('Summary.xlsx')
+excelOutPath = taskfilePath+'/Summary.xlsx'
 OSACAPath="/home/shaojiemike/github/OSACA-feature-tsv110/newOSACA/bin/osaca "
 saveInfo="0222newOSACAagain"
 BHiveCount=10000
@@ -51,6 +52,8 @@ def OSACA(password,inputFile,maxOrCP):
             return Max
         elif maxOrCP == "CP":
             return CP
+        elif maxOrCP == "LCD":
+            return LCD
         else:
             return -1
     else:
@@ -185,7 +188,7 @@ def calculateAccuracyLLVM(accurateCycles,predictionCycles):
         gap=abs(int(predictionCycles)-int(accurateCycles))
         return int(gap)/int(accurateCycles) # accuracy variable is error
 
-def paralleReadProcess(rank,password, startFileLine,endFileLine,unique_revBiblock_Queue,frequencyRevBiBlock_Queue,OSACAmaxCyclesRevBiBlock_Queue,OSACACPCyclesRevBiBlock_Queue,BhiveCyclesRevBiBlock_Queue,accuracyMax_Queue,accuracyCP_Queue,llvmmcaCyclesRevBiBlock_Queue,accuracyLLVM_Queue):
+def paralleReadProcess(rank,password, startFileLine,endFileLine,unique_revBiblock_Queue,frequencyRevBiBlock_Queue,OSACAmaxCyclesRevBiBlock_Queue,OSACACPCyclesRevBiBlock_Queue,OSACALCDCyclesRevBiBlock_Queue,BhiveCyclesRevBiBlock_Queue,accuracyMax_Queue,accuracyCP_Queue,llvmmcaCyclesRevBiBlock_Queue,accuracyLLVM_Queue):
     print("MPI Process Start {:2d} {}~{}".format(rank,startFileLine,endFileLine))
     fread=open(filename, 'r')
     unique_revBiblock=set()
@@ -193,6 +196,7 @@ def paralleReadProcess(rank,password, startFileLine,endFileLine,unique_revBibloc
     llvmmcaCyclesRevBiBlock = defaultdict(int)
     OSACAmaxCyclesRevBiBlock = defaultdict(int)
     OSACACPCyclesRevBiBlock = defaultdict(int)
+    OSACALCDCyclesRevBiBlock =  defaultdict(int)
     BhiveCyclesRevBiBlock = defaultdict(int)
     accuracyLLVM = defaultdict(float)
     accuracyMax = defaultdict(float)
@@ -211,6 +215,7 @@ def paralleReadProcess(rank,password, startFileLine,endFileLine,unique_revBibloc
         OSACAInput=saveOSACAInput2File(capstoneList(capstoneInput(block)),rank)
         OSACAmaxCyclesRevBiBlock[block] = OSACA(password,OSACAInput,"max")
         OSACACPCyclesRevBiBlock[block] = OSACA(password,OSACAInput,"CP")
+        OSACALCDCyclesRevBiBlock[block] = OSACA(password,OSACAInput,"LCD")
         # print("             rank{}:block{}______{}".format(rank,block,OSACAmaxCyclesRevBiBlock[block]))
         accuracyLLVM[block]= calculateAccuracyLLVM(BhiveCyclesRevBiBlock[block],llvmmcaCyclesRevBiBlock[block])
         accuracyMax[block]= calculateAccuracyOSACA(BhiveCyclesRevBiBlock[block],OSACAmaxCyclesRevBiBlock[block],rank)
@@ -224,6 +229,7 @@ def paralleReadProcess(rank,password, startFileLine,endFileLine,unique_revBibloc
     llvmmcaCyclesRevBiBlock_Queue.put(llvmmcaCyclesRevBiBlock)
     OSACAmaxCyclesRevBiBlock_Queue.put(OSACAmaxCyclesRevBiBlock)
     OSACACPCyclesRevBiBlock_Queue.put(OSACACPCyclesRevBiBlock)
+    OSACALCDCyclesRevBiBlock_Queue.put(OSACALCDCyclesRevBiBlock)
     BhiveCyclesRevBiBlock_Queue.put(BhiveCyclesRevBiBlock)
     # print("3rank{}".format(rank))
     accuracyLLVM_Queue.put(accuracyLLVM)
@@ -231,7 +237,7 @@ def paralleReadProcess(rank,password, startFileLine,endFileLine,unique_revBibloc
     accuracyCP_Queue.put(accuracyCP)
     print("MPI Process end {:2d} {}~{}".format(rank,startFileLine,endFileLine))
 
-def readPartFile(password, unique_revBiblock,frequencyRevBiBlock,OSACAmaxCyclesRevBiBlock,OSACACPCyclesRevBiBlock,BhiveCyclesRevBiBlock,accuracyMax,accuracyCP,llvmmcaCyclesRevBiBlock,accuracyLLVM):
+def readPartFile(password, unique_revBiblock,frequencyRevBiBlock,OSACAmaxCyclesRevBiBlock,OSACACPCyclesRevBiBlock,OSACALCDCyclesRevBiBlock,BhiveCyclesRevBiBlock,accuracyMax,accuracyCP,llvmmcaCyclesRevBiBlock,accuracyLLVM):
     global num_file,ProcessNum
     fread=open(filename, 'r')
     num_file = sum([1 for i in open(filename, "r")])
@@ -242,6 +248,7 @@ def readPartFile(password, unique_revBiblock,frequencyRevBiBlock,OSACAmaxCyclesR
     llvmmcaCyclesRevBiBlock_Queue=Queue()
     OSACAmaxCyclesRevBiBlock_Queue=Queue()
     OSACACPCyclesRevBiBlock_Queue=Queue()
+    OSACALCDCyclesRevBiBlock_Queue=Queue()
     BhiveCyclesRevBiBlock_Queue=Queue()
     accuracyLLVM_Queue=Queue()
     accuracyMax_Queue=Queue()
@@ -250,7 +257,7 @@ def readPartFile(password, unique_revBiblock,frequencyRevBiBlock,OSACAmaxCyclesR
     for i in range(ProcessNum):
         startFileLine=int(i*num_file/ProcessNum)
         endFileLine=int((i+1)*num_file/ProcessNum)
-        p = Process(target=paralleReadProcess, args=(i,password, startFileLine,endFileLine,unique_revBiblock_Queue,frequencyRevBiBlock_Queue,OSACAmaxCyclesRevBiBlock_Queue,OSACACPCyclesRevBiBlock_Queue,BhiveCyclesRevBiBlock_Queue,accuracyMax_Queue,accuracyCP_Queue,llvmmcaCyclesRevBiBlock_Queue,accuracyLLVM_Queue))
+        p = Process(target=paralleReadProcess, args=(i,password, startFileLine,endFileLine,unique_revBiblock_Queue,frequencyRevBiBlock_Queue,OSACAmaxCyclesRevBiBlock_Queue,OSACACPCyclesRevBiBlock_Queue,OSACALCDCyclesRevBiBlock_Queue,BhiveCyclesRevBiBlock_Queue,accuracyMax_Queue,accuracyCP_Queue,llvmmcaCyclesRevBiBlock_Queue,accuracyLLVM_Queue))
         p.start()
 
     while unique_revBiblock_Queue.qsize()<ProcessNum:
@@ -265,6 +272,7 @@ def readPartFile(password, unique_revBiblock,frequencyRevBiBlock,OSACAmaxCyclesR
         llvmmcaCyclesRevBiBlock.update(llvmmcaCyclesRevBiBlock_Queue.get())
         OSACAmaxCyclesRevBiBlock.update(OSACAmaxCyclesRevBiBlock_Queue.get())
         OSACACPCyclesRevBiBlock.update(OSACACPCyclesRevBiBlock_Queue.get())
+        OSACALCDCyclesRevBiBlock.update(OSACALCDCyclesRevBiBlock_Queue.get())
         BhiveCyclesRevBiBlock.update(BhiveCyclesRevBiBlock_Queue.get())
         accuracyLLVM.update(accuracyLLVM_Queue.get())
         accuracyMax.update(accuracyMax_Queue.get())
@@ -356,12 +364,16 @@ def mkdir(path):
 	else:
 		print("---  There is this folder!  ---")
 
-def add2Excel(wb,name,isFirstSheet,unique_revBiblock,frequencyRevBiBlock,OSACAmaxCyclesRevBiBlock,OSACACPCyclesRevBiBlock,BhiveCyclesRevBiBlock,accuracyMax,accuracyCP,llvmmcaCyclesRevBiBlock,accuracyLLVM):
+def add2Excel(wb,name,isFirstSheet,unique_revBiblock,frequencyRevBiBlock,OSACAmaxCyclesRevBiBlock,OSACACPCyclesRevBiBlock,OSACALCDCyclesRevBiBlock,BhiveCyclesRevBiBlock,accuracyMax,accuracyCP,llvmmcaCyclesRevBiBlock,accuracyLLVM):
     # if isFirstSheet==1:
         # ws = wb.active # 找当前Sheet
         # ws.title = name
-    ws3 = wb[name]
-    ws.append(["num","block_binary" , "block_frequency", "OSACA_max_result", "OSACA_critical_path_result","LLVM-MCA_result", "BHive", "accuracyLLVM", "accuracyMax", "accuracyCP" ]) # 添加行
+    wb.create_sheet(name)
+    ws = wb[name]
+    ws.append(["num","block_binary" , "block_frequency", "OSACA_max_result", "OSACA_CP","OSACA_LCD","LLVM-MCA_result", "BHive", "accuracyLLVM", "accuracyMax", "accuracyCP" ]) # 添加行
+    ws.column_dimensions['B'].width = 62 # 修改列宽
+    for i in ['C','D','E','F','G','H','I','J','K']:
+        ws.column_dimensions[i].width = 15 # 修改列宽
     validNum=0
     unvalidNum=0
     totalAccuracyLLVM=0.0
@@ -388,6 +400,7 @@ def add2Excel(wb,name,isFirstSheet,unique_revBiblock,frequencyRevBiBlock,OSACAma
                 frequencyRevBiBlock[tmp_block_binary_reverse],
                 OSACAmaxCyclesRevBiBlock[tmp_block_binary_reverse],
                 OSACACPCyclesRevBiBlock[tmp_block_binary_reverse],
+                OSACALCDCyclesRevBiBlock[tmp_block_binary_reverse],
                 llvmmcaCyclesRevBiBlock[tmp_block_binary_reverse],
                 BhiveCyclesRevBiBlock[tmp_block_binary_reverse],
                 accuracyLLVM[tmp_block_binary_reverse],
@@ -400,6 +413,7 @@ def add2Excel(wb,name,isFirstSheet,unique_revBiblock,frequencyRevBiBlock,OSACAma
                 frequencyRevBiBlock[tmp_block_binary_reverse],
                 OSACAmaxCyclesRevBiBlock[tmp_block_binary_reverse],
                 OSACACPCyclesRevBiBlock[tmp_block_binary_reverse],
+                OSACALCDCyclesRevBiBlock[tmp_block_binary_reverse],
                 llvmmcaCyclesRevBiBlock[tmp_block_binary_reverse],
                 BhiveCyclesRevBiBlock[tmp_block_binary_reverse],
                 accuracyLLVM[tmp_block_binary_reverse],
@@ -411,18 +425,47 @@ def add2Excel(wb,name,isFirstSheet,unique_revBiblock,frequencyRevBiBlock,OSACAma
     return [llvmerror,osacaerror]
 
 def excelGraphInit(wb):
+    ws = wb.active # 找当前Sheet
+    ws.title = 'Graph'
     ws = wb["Graph"]
-    ws.append(["applications","OSACA_error","LLVM-MCA_error"])
+    ws.column_dimensions['A'].width = 15 # 修改列宽
+    ws.column_dimensions['B'].width = 15 # 修改列宽
+    ws.column_dimensions['C'].width = 15 # 修改列宽
+    ws.append(["applications","LLVM-MCA_error","OSACA_error"])
 
-def excelGraphAdd(wb,llvmerror,osacaerror):
+def excelGraphAdd(wb,taskName,llvmerror,osacaerror):
     ws = wb["Graph"]
     ws.append([taskName,llvmerror,osacaerror])
 
 def excelGraphBuild(wb):
+    # 一个图两个轴
+    ws = wb["Graph"]
+    ct_bar = BarChart()
+    taskNum=len(taskList)
+    ws['D1'] = '误差比值'
+    for i in range(2, taskNum+2):
+        ws[f'D{i}'] = ws[f'C{i}'].value / ws[f'B{i}'].value
+    d_ref = Reference(ws, min_col=2, min_row=1, max_row=taskNum+1, max_col=3)
+    ct_bar.add_data(d_ref, titles_from_data=True)
+    series = Reference(ws, min_col=1, min_row=2, max_row=taskNum+1)
+    ct_bar.set_categories(series)
+    ct_bar.x_axis.title = '应用'
+    ct_bar.y_axis.title = '误差'
+    ct_bar.y_axis.majorGridlines = None
+    ct_bar.title = '各应用静态分析误差对比表'
+    ct_line = LineChart()
+    d_ref = Reference(ws, min_col=4, min_row=1, max_row=taskNum+1)
+    ct_line.add_data(d_ref, titles_from_data=True)
+    ct_line.y_axis.axId = 200 # 不为空即可
+    ct_line.y_axis.title = '误差比值'
+    # 让线条和第一图的最大值相交
+    ct_line.y_axis.crosses = 'max'
+    ct_bar += ct_line # 只支持+=赋值，不能直接+
+    ws.add_chart(ct_bar, 'A10')
     wb.save(excelOutPath)
 
 if __name__ == "__main__":
-    global filename,taskfilePath,taskfilenameprefixWithoutPath,taskfilenameprefix
+    global filename,taskfilenameprefixWithoutPath,taskfilenameprefix
     print("请输入sudo密码")
     password=input("password:")
     checkFile(taskfilePath)
@@ -440,15 +483,16 @@ if __name__ == "__main__":
         llvmmcaCyclesRevBiBlock = defaultdict(int)
         OSACAmaxCyclesRevBiBlock = defaultdict(int)
         OSACACPCyclesRevBiBlock = defaultdict(int)
+        OSACALCDCyclesRevBiBlock = defaultdict(int)
         BhiveCyclesRevBiBlock = defaultdict(int)
         accuracyLLVM = defaultdict(float)
         accuracyMax = defaultdict(float)
         accuracyCP = defaultdict(float)
 
-        unique_revBiblock=readPartFile(password, unique_revBiblock,frequencyRevBiBlock,OSACAmaxCyclesRevBiBlock,OSACACPCyclesRevBiBlock,BhiveCyclesRevBiBlock,accuracyMax,accuracyCP,llvmmcaCyclesRevBiBlock,accuracyLLVM)
+        unique_revBiblock=readPartFile(password, unique_revBiblock,frequencyRevBiBlock,OSACAmaxCyclesRevBiBlock,OSACACPCyclesRevBiBlock,OSACALCDCyclesRevBiBlock,BhiveCyclesRevBiBlock,accuracyMax,accuracyCP,llvmmcaCyclesRevBiBlock,accuracyLLVM)
         print("blockSize {} {}".format(len(unique_revBiblock),len(frequencyRevBiBlock)))
         saveAllResult(taskfilenameprefix,unique_revBiblock,frequencyRevBiBlock,OSACAmaxCyclesRevBiBlock,OSACACPCyclesRevBiBlock,BhiveCyclesRevBiBlock,accuracyMax,accuracyCP,llvmmcaCyclesRevBiBlock,accuracyLLVM)
-        [llvmerror,osacaerror] = add2Excel(wb,taskName,isFirstSheet,unique_revBiblock,frequencyRevBiBlock,OSACAmaxCyclesRevBiBlock,OSACACPCyclesRevBiBlock,BhiveCyclesRevBiBlock,accuracyMax,accuracyCP,llvmmcaCyclesRevBiBlock,accuracyLLVM)
+        [llvmerror,osacaerror] = add2Excel(wb,taskName,isFirstSheet,unique_revBiblock,frequencyRevBiBlock,OSACAmaxCyclesRevBiBlock,OSACACPCyclesRevBiBlock,OSACALCDCyclesRevBiBlock,BhiveCyclesRevBiBlock,accuracyMax,accuracyCP,llvmmcaCyclesRevBiBlock,accuracyLLVM)
         excelGraphAdd(wb,taskName,llvmerror,osacaerror)
         isFirstSheet=0
     excelGraphBuild(wb)
