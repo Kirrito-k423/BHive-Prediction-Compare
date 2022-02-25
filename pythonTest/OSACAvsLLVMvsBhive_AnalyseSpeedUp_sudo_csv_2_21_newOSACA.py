@@ -9,7 +9,20 @@ import  time
 import sys
 from capstone import *
 from multiprocessing import Process, Queue
+import pathlib
+import datetime
+from openpyxl import Workbook
 
+taskfilePath="/home/shaojiemike/blockFrequency"
+taskList={"tensorflow_test_100":"tensorflow_1",
+            "tensorflow_test_5":"tensorflow_2",
+            "tensorflow_test_3":"tensorflow_2"}
+            # "clang_harness_00all_skip_2":"Clang",
+            # "tensorflow_41Gdir_00all_skip_2":"Tensorflow",
+            # "MM_median_all_skip_2":"Eigen",
+            # "Gzip_all_skip_2":"Gzip",
+            # "redis_r1000000_n2000000_P16_all_skip_2":"Redis"}
+excelOutPath = taskfilePath.joinpath('Summary.xlsx')
 OSACAPath="/home/shaojiemike/github/OSACA-feature-tsv110/newOSACA/bin/osaca "
 saveInfo="0222newOSACAagain"
 BHiveCount=10000
@@ -343,21 +356,81 @@ def mkdir(path):
 	else:
 		print("---  There is this folder!  ---")
 
+def add2Excel(wb,name,isFirstSheet,unique_revBiblock,frequencyRevBiBlock,OSACAmaxCyclesRevBiBlock,OSACACPCyclesRevBiBlock,BhiveCyclesRevBiBlock,accuracyMax,accuracyCP,llvmmcaCyclesRevBiBlock,accuracyLLVM):
+    # if isFirstSheet==1:
+        # ws = wb.active # 找当前Sheet
+        # ws.title = name
+    ws3 = wb[name]
+    ws.append(["num","block_binary" , "block_frequency", "OSACA_max_result", "OSACA_critical_path_result","LLVM-MCA_result", "BHive", "accuracyLLVM", "accuracyMax", "accuracyCP" ]) # 添加行
+    validNum=0
+    unvalidNum=0
+    totalAccuracyLLVM=0.0
+    totalaccuracyMax=0.0
+    totalaccuracyCP=0.0
+    totalOSACAavg=0.0
+    lineNum=0
+    for tmp_block_binary_reverse in unique_revBiblock:
+        lineNum+=1
+        tmpInput=[]
+        if accuracyMax[tmp_block_binary_reverse] != 0 and accuracyCP[tmp_block_binary_reverse] != 0 and accuracyLLVM[tmp_block_binary_reverse] != 0:
+            validNum+=frequencyRevBiBlock[tmp_block_binary_reverse]
+            totalAccuracyLLVM+=frequencyRevBiBlock[tmp_block_binary_reverse]*accuracyLLVM[tmp_block_binary_reverse]
+            totalaccuracyMax+=frequencyRevBiBlock[tmp_block_binary_reverse]*accuracyMax[tmp_block_binary_reverse]
+            totalaccuracyCP+=frequencyRevBiBlock[tmp_block_binary_reverse]*accuracyCP[tmp_block_binary_reverse]
+            count=frequencyRevBiBlock[tmp_block_binary_reverse]
+            OSACAMax=OSACAmaxCyclesRevBiBlock[tmp_block_binary_reverse]
+            OSACACP=OSACACPCyclesRevBiBlock[tmp_block_binary_reverse]
+            realBHive=float(BhiveCyclesRevBiBlock[tmp_block_binary_reverse])
+            tmp=(OSACAMax+OSACACP)/2 * BHiveCount - realBHive
+            totalOSACAavg+=abs(tmp)/realBHive * count
+            ws.append(["{:5d} ".format(lineNum), 
+                tmp_block_binary_reverse,
+                frequencyRevBiBlock[tmp_block_binary_reverse],
+                OSACAmaxCyclesRevBiBlock[tmp_block_binary_reverse],
+                OSACACPCyclesRevBiBlock[tmp_block_binary_reverse],
+                llvmmcaCyclesRevBiBlock[tmp_block_binary_reverse],
+                BhiveCyclesRevBiBlock[tmp_block_binary_reverse],
+                accuracyLLVM[tmp_block_binary_reverse],
+                accuracyMax[tmp_block_binary_reverse],
+                accuracyCP[tmp_block_binary_reverse]])
+        else:
+            unvalidNum+=1
+            ws.append(["{:5d} ".format(lineNum), 
+                tmp_block_binary_reverse,
+                frequencyRevBiBlock[tmp_block_binary_reverse],
+                OSACAmaxCyclesRevBiBlock[tmp_block_binary_reverse],
+                OSACACPCyclesRevBiBlock[tmp_block_binary_reverse],
+                llvmmcaCyclesRevBiBlock[tmp_block_binary_reverse],
+                BhiveCyclesRevBiBlock[tmp_block_binary_reverse],
+                accuracyLLVM[tmp_block_binary_reverse],
+                accuracyMax[tmp_block_binary_reverse],
+                accuracyCP[tmp_block_binary_reverse],
+                "ops!"])
+    llvmerror=totalAccuracyLLVM/validNum
+    osacaerror=totalOSACAavg/validNum
+    return [llvmerror,osacaerror]
+
+def excelGraphInit(wb):
+    ws = wb["Graph"]
+    ws.append(["applications","OSACA_error","LLVM-MCA_error"])
+
+def excelGraphAdd(wb,llvmerror,osacaerror):
+    ws = wb["Graph"]
+    ws.append([taskName,llvmerror,osacaerror])
+
+def excelGraphBuild(wb):
+    wb.save(excelOutPath)
+
 if __name__ == "__main__":
     global filename,taskfilePath,taskfilenameprefixWithoutPath,taskfilenameprefix
     print("请输入sudo密码")
     password=input("password:")
-    taskfilePath="/home/shaojiemike/blockFrequency"
     checkFile(taskfilePath)
-    taskList=["tensorflow_test_100",
-            "tensorflow_test_5",
-            "tensorflow_test_3"]
-            # "clang_harness_00all_skip_2",
-            # "tensorflow_41Gdir_00all_skip_2",
-            # "MM_median_all_skip_2","Gzip_all_skip_2",
-            # "redis_r1000000_n2000000_P16_all_skip_2"]
-    for taskI in taskList:
-        taskfilenameprefixWithoutPath=taskI
+    wb = Workbook()
+    excelGraphInit(wb)
+    isFirstSheet=1
+    for taskKey, taskName in taskList.items():
+        taskfilenameprefixWithoutPath=taskKey
         taskfilenameprefix="{}/{}".format(taskfilePath,taskfilenameprefixWithoutPath)
         taskfilenamesubfix="log"
         filename="{}.{}".format(taskfilenameprefix,taskfilenamesubfix)
@@ -375,3 +448,7 @@ if __name__ == "__main__":
         unique_revBiblock=readPartFile(password, unique_revBiblock,frequencyRevBiBlock,OSACAmaxCyclesRevBiBlock,OSACACPCyclesRevBiBlock,BhiveCyclesRevBiBlock,accuracyMax,accuracyCP,llvmmcaCyclesRevBiBlock,accuracyLLVM)
         print("blockSize {} {}".format(len(unique_revBiblock),len(frequencyRevBiBlock)))
         saveAllResult(taskfilenameprefix,unique_revBiblock,frequencyRevBiBlock,OSACAmaxCyclesRevBiBlock,OSACACPCyclesRevBiBlock,BhiveCyclesRevBiBlock,accuracyMax,accuracyCP,llvmmcaCyclesRevBiBlock,accuracyLLVM)
+        [llvmerror,osacaerror] = add2Excel(wb,taskName,isFirstSheet,unique_revBiblock,frequencyRevBiBlock,OSACAmaxCyclesRevBiBlock,OSACACPCyclesRevBiBlock,BhiveCyclesRevBiBlock,accuracyMax,accuracyCP,llvmmcaCyclesRevBiBlock,accuracyLLVM)
+        excelGraphAdd(wb,taskName,llvmerror,osacaerror)
+        isFirstSheet=0
+    excelGraphBuild(wb)
