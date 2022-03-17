@@ -17,43 +17,48 @@ from openpyxl.chart import BarChart, PieChart, LineChart, Reference
 taskfilePath="/home/shaojiemike/blockFrequency"
 taskList={"tensorflow_test_100":"tensorflow_1",
             "tensorflow_test_5":"tensorflow_2",
-            "tensorflow_test_3":"tensorflow_3"}
+            "tensorflow_test_3":"tensorflow_3",
+            "test_insns_blockFrequency_skip_2":"test_insns"}
             # "clang_harness_00all_skip_2":"Clang",
             # "tensorflow_41Gdir_00all_skip_2":"Tensorflow",
             # "MM_median_all_skip_2":"Eigen",
             # "Gzip_all_skip_2":"Gzip",
             # "redis_r1000000_n2000000_P16_all_skip_2":"Redis"}
 excelOutPath = taskfilePath+'/Summary.xlsx'
-OSACAPath="/home/shaojiemike/github/OSACA-feature-tsv110/newOSACA/bin/osaca "
+# OSACAPath="/home/shaojiemike/github/OSACA-feature-tsv110/newOSACA/bin/osaca "
+OSACAPath="/home/shaojiemike/github/qcjiang/OSACA/qcjiangOSACA/bin/osaca"
 saveInfo="0222newOSACAagain"
 BHiveCount=10000
-ProcessNum=35
+ProcessNum=25
 
 def OSACA(password,inputFile,maxOrCP):
     val=os.popen('echo '+password+' | sudo -S '+OSACAPath+' --arch TSV110 '+str(inputFile))#  -timeline -show-encoding -all-stats -all-views
     list = val.readlines()
-    lineNum=1
-    while lineNum:
-        listObj=list[lineNum]
-        regexResult=re.search("Loop-Carried Dependencies Analysis Report",listObj)
-        if regexResult:
-            break
-        lineNum+=1
-    resultLineNum=lineNum-5
-    it=re.finditer("[.0-9]+",list[resultLineNum])
-    resultList=[]
-    for match in it: 
-        resultList.append(float(match.group()))
-    if resultList:
-        LCD=resultList.pop()
-        CP=resultList.pop()
-        Max=max(resultList)
-        if maxOrCP == "max":
-            return Max
-        elif maxOrCP == "CP":
-            return CP
-        elif maxOrCP == "LCD":
-            return LCD
+    if list:
+        lineNum=1
+        while lineNum:
+            listObj=list[lineNum]
+            regexResult=re.search("Loop-Carried Dependencies Analysis Report",listObj)
+            if regexResult:
+                break
+            lineNum+=1
+        resultLineNum=lineNum-5
+        it=re.finditer("[.0-9]+",list[resultLineNum])
+        resultList=[]
+        for match in it: 
+            resultList.append(float(match.group()))
+        if resultList:
+            LCD=resultList.pop()
+            CP=resultList.pop()
+            Max=max(resultList)
+            if maxOrCP == "max":
+                return Max
+            elif maxOrCP == "CP":
+                return CP
+            elif maxOrCP == "LCD":
+                return LCD
+            else:
+                return -1
         else:
             return -1
     else:
@@ -107,6 +112,37 @@ def capstone(string):
         InputAsm+="{}\t{}\n".format(i.mnemonic, i.op_str)
     return InputAsm
 
+def arroundPercent(percent,A,B):
+    intA=int(A)
+    intB=int(B)
+    avg=(intA+intB)/2
+    delta=percent*avg/100
+    if intA>avg-delta and intA<avg+delta and intB>avg-delta and intB<avg+delta:
+        return True
+    else:
+        return False
+
+
+def checkBHiveResultStable(password,input,showinput,trytime):
+    global BHiveCount
+    order=0 
+    if trytime==0:
+        order=order+1
+    elif trytime>5:
+        return -1
+    sys.stdout.flush()
+    val=os.popen('echo '+password+' | sudo -S /home/shaojiemike/test/bhive-re/bhive/main '+str(BHiveCount)+input)
+    list = val.readlines()
+    if list is None or len(list)==0:
+        regexResult=None
+    else:
+        regexResult=re.search("core cyc: ([0-9]*)",list[-1])
+    if regexResult:
+        resultCycle=regexResult.group(1)
+        return resultCycle
+    else:
+        return checkBHiveResultStable(password,input,showinput,trytime+1)
+
 def BHive(password,input,showinput,trytime):
     global BHiveCount
     order=0 
@@ -139,7 +175,11 @@ def BHive(password,input,showinput,trytime):
     if regexResult:
         resultCycle=regexResult.group(1)
         # print(resultCycle)
-        return resultCycle
+        checkCycle=checkBHiveResultStable(password,input,showinput,0)
+        if arroundPercent(5,resultCycle,checkCycle):
+            return resultCycle
+        else:
+            return BHive(password,input,showinput,trytime+1)   
     else:
         # print("trytime: {} {}".format(trytime ,list[-1]))
         # print("else {}/{} {}".format(order,num_file,input))
@@ -370,7 +410,7 @@ def add2Excel(wb,name,isFirstSheet,unique_revBiblock,frequencyRevBiBlock,OSACAma
         # ws.title = name
     wb.create_sheet(name)
     ws = wb[name]
-    ws.append(["num","block_binary" , "block_frequency", "OSACA_max_result", "OSACA_CP","OSACA_LCD","LLVM-MCA_result", "BHive", "accuracyLLVM", "accuracyMax", "accuracyCP" ]) # 添加行
+    ws.append(["num","block_binary" , "ARM64_assembly_code", "block_frequency", "OSACA_max_result", "OSACA_CP","OSACA_LCD","LLVM-MCA_result", "BHive", "accuracyLLVM", "accuracyMax", "accuracyCP" ]) # 添加行
     ws.column_dimensions['B'].width = 62 # 修改列宽
     for i in ['C','D','E','F','G','H','I','J','K']:
         ws.column_dimensions[i].width = 15 # 修改列宽
@@ -384,6 +424,7 @@ def add2Excel(wb,name,isFirstSheet,unique_revBiblock,frequencyRevBiBlock,OSACAma
     for tmp_block_binary_reverse in unique_revBiblock:
         lineNum+=1
         tmpInput=[]
+        tmpARMassembly=capstone(capstoneInput(tmp_block_binary_reverse))
         if accuracyMax[tmp_block_binary_reverse] != 0 and accuracyCP[tmp_block_binary_reverse] != 0 and accuracyLLVM[tmp_block_binary_reverse] != 0:
             validNum+=frequencyRevBiBlock[tmp_block_binary_reverse]
             totalAccuracyLLVM+=frequencyRevBiBlock[tmp_block_binary_reverse]*accuracyLLVM[tmp_block_binary_reverse]
@@ -397,6 +438,7 @@ def add2Excel(wb,name,isFirstSheet,unique_revBiblock,frequencyRevBiBlock,OSACAma
             totalOSACAavg+=abs(tmp)/realBHive * count
             ws.append(["{:5d} ".format(lineNum), 
                 tmp_block_binary_reverse,
+                tmpARMassembly,
                 frequencyRevBiBlock[tmp_block_binary_reverse],
                 OSACAmaxCyclesRevBiBlock[tmp_block_binary_reverse],
                 OSACACPCyclesRevBiBlock[tmp_block_binary_reverse],
@@ -410,6 +452,7 @@ def add2Excel(wb,name,isFirstSheet,unique_revBiblock,frequencyRevBiBlock,OSACAma
             unvalidNum+=1
             ws.append(["{:5d} ".format(lineNum), 
                 tmp_block_binary_reverse,
+                tmpARMassembly,
                 frequencyRevBiBlock[tmp_block_binary_reverse],
                 OSACAmaxCyclesRevBiBlock[tmp_block_binary_reverse],
                 OSACACPCyclesRevBiBlock[tmp_block_binary_reverse],
