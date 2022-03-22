@@ -15,9 +15,10 @@ from openpyxl import Workbook
 from openpyxl.chart import BarChart, PieChart, LineChart, Reference
 
 taskfilePath="/home/shaojiemike/blockFrequency"
-taskList={"tensorflow_test_100":"tensorflow_1",
-            "tensorflow_test_5":"tensorflow_2",
-            "tensorflow_test_3":"tensorflow_3",
+taskList={
+    # "tensorflow_test_100":"tensorflow_1",
+    #         "tensorflow_test_5":"tensorflow_2",
+    #         "tensorflow_test_3":"tensorflow_3",
             "test_insns_blockFrequency_skip_2":"test_insns"}
             # "clang_harness_00all_skip_2":"Clang",
             # "tensorflow_41Gdir_00all_skip_2":"Tensorflow",
@@ -27,9 +28,11 @@ taskList={"tensorflow_test_100":"tensorflow_1",
 excelOutPath = taskfilePath+'/Summary.xlsx'
 # OSACAPath="/home/shaojiemike/github/OSACA-feature-tsv110/newOSACA/bin/osaca "
 OSACAPath="/home/shaojiemike/github/qcjiang/OSACA/qcjiangOSACA/bin/osaca"
+LLVM_mcaPath="/home/shaojiemike/Install/llvm/bin/llvm-mca"
+BHivePath="/home/shaojiemike/test/bhive-re/bhive/main"
 saveInfo="0222newOSACAagain"
-BHiveCount=10000
-ProcessNum=25
+BHiveCount=100
+ProcessNum=20
 
 def OSACA(password,inputFile,maxOrCP):
     val=os.popen('echo '+password+' | sudo -S '+OSACAPath+' --arch TSV110 '+str(inputFile))#  -timeline -show-encoding -all-stats -all-views
@@ -46,7 +49,7 @@ def OSACA(password,inputFile,maxOrCP):
         it=re.finditer("[.0-9]+",list[resultLineNum])
         resultList=[]
         for match in it: 
-            resultList.append(float(match.group()))
+            resultList.append(float("0"+match.group()))
         if resultList:
             LCD=resultList.pop()
             CP=resultList.pop()
@@ -91,7 +94,7 @@ def capstoneInput(block):
 
 def LLVM_mca(password,input):
     sys.stdout.flush()
-    val=os.popen('echo "'+input+'" | /home/shaojiemike/Install/llvm/bin/llvm-mca -iterations='+str(BHiveCount))#  -timeline -show-encoding -all-stats -all-views
+    val=os.popen('echo "'+input+'" | '+LLVM_mcaPath+' -iterations='+str(BHiveCount))#  -timeline -show-encoding -all-stats -all-views
     list = val.readlines()
     #Total Cycles:      10005
     # print(list[2])
@@ -131,7 +134,7 @@ def checkBHiveResultStable(password,input,showinput,trytime):
     elif trytime>5:
         return -1
     sys.stdout.flush()
-    val=os.popen('echo '+password+' | sudo -S /home/shaojiemike/test/bhive-re/bhive/main '+str(BHiveCount)+input)
+    val=os.popen('echo '+password+' | sudo -S '+BHivePath+' '+str(BHiveCount)+input)
     list = val.readlines()
     if list is None or len(list)==0:
         regexResult=None
@@ -157,7 +160,7 @@ def BHive(password,input,showinput,trytime):
     # print("before main {}/{} {}".format(order,num_file,showinput))
     sys.stdout.flush()
     # begin_time=time.time()
-    val=os.popen('echo '+password+' | sudo -S /home/shaojiemike/test/bhive-re/bhive/main '+str(BHiveCount)+input)
+    val=os.popen('echo '+password+' | sudo -S '+BHivePath+' '+str(BHiveCount)+input)
     # call_main_time=time.time()-begin_time
     # print("after  main {}/{} {}s".format(order,num_file,call_main_time))
     # sys.stdout.flush()
