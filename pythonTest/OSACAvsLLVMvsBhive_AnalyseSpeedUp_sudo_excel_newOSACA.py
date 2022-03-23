@@ -13,6 +13,7 @@ import pathlib
 import datetime
 from openpyxl import Workbook
 from openpyxl.chart import BarChart, PieChart, LineChart, Reference
+import pprint
 
 taskfilePath="/home/shaojiemike/blockFrequency"
 taskList={
@@ -32,7 +33,7 @@ LLVM_mcaPath="/home/shaojiemike/Install/llvm/bin/llvm-mca"
 BHivePath="/home/shaojiemike/test/bhive-re/bhive/main"
 saveInfo="0222newOSACAagain"
 BHiveCount=100
-ProcessNum=20
+ProcessNum=1
 
 def OSACA(password,inputFile,maxOrCP):
     val=os.popen('echo '+password+' | sudo -S '+OSACAPath+' --arch TSV110 '+str(inputFile))#  -timeline -show-encoding -all-stats -all-views
@@ -48,22 +49,29 @@ def OSACA(password,inputFile,maxOrCP):
         resultLineNum=lineNum-5
         it=re.finditer("[.0-9]+",list[resultLineNum])
         resultList=[]
-        for match in it: 
-            resultList.append(float("0"+match.group()))
-        if resultList:
-            LCD=resultList.pop()
-            CP=resultList.pop()
-            Max=max(resultList)
-            if maxOrCP == "max":
-                return Max
-            elif maxOrCP == "CP":
-                return CP
-            elif maxOrCP == "LCD":
-                return LCD
+        try:
+            if not it:
+                return -1
+            for match in it: 
+                resultList.append(float("0"+match.group()))
+            if len(resultList)>2:
+                LCD=resultList.pop()
+                CP=resultList.pop()
+                Max=max(resultList)
+                if maxOrCP == "max":
+                    return Max
+                elif maxOrCP == "CP":
+                    return CP
+                elif maxOrCP == "LCD":
+                    return LCD
+                else:
+                    return -1
             else:
                 return -1
-        else:
-            return -1
+        except Exception as e:
+            print("osacaText:{}\n".format(list[resultLineNum]))
+            pprint.pprint(list)
+            raise e
     else:
         return -1
 
