@@ -13,13 +13,16 @@ import pathlib
 import datetime
 from openpyxl import Workbook
 from openpyxl.chart import BarChart, PieChart, LineChart, Reference
-import pprint
 
 taskfilePath="/home/shaojiemike/blockFrequency"
-taskList={
+# taskList={\
     # "tensorflow_test_100":"tensorflow_1",
-    #         "tensorflow_test_5":"tensorflow_2",
-    #         "tensorflow_test_3":"tensorflow_3",
+            # "tensorflow_test_5":"tensorflow_2",
+            # "tensorflow_test_3":"tensorflow_3",
+taskList={           "test_insns_blockFrequency_skip_2":"test_insns"}
+# taskList={ "test_insns_test_5":"test"}
+# taskList={ 
+taskList={        
             "test_insns_blockFrequency_skip_2":"test_insns",
             "clang_harness_00all_skip_2":"Clang",
             "tensorflow_41Gdir_00all_skip_2":"Tensorflow",
@@ -28,15 +31,15 @@ taskList={
             "redis_r1000000_n2000000_P16_all_skip_2":"Redis"}
 excelOutPath = taskfilePath+'/Summary.xlsx'
 # OSACAPath="/home/shaojiemike/github/OSACA-feature-tsv110/newOSACA/bin/osaca "
-OSACAPath="/home/shaojiemike/github/qcjiang/OSACA/qcjiangOSACA/bin/osaca"
-LLVM_mcaPath="/home/shaojiemike/Install/llvm/bin/llvm-mca"
-BHivePath="/home/shaojiemike/test/bhive-re/bhive/main"
-saveInfo="0324newOSACAagain"
+OSACAPath="/home/qcjiang/softwares/anaconda3/bin/osaca"
+LLVM_mcaPath="/home/qcjiang/codes/llvm-project/build/bin/llvm-mca"
+BHivePath="/home/qcjiang/codes/KunpengWorkload/micro_benchmarks/bhive-reg/main"
+saveInfo="0222newOSACAagain"
 BHiveCount=100
 ProcessNum=30
 
 def OSACA(password,inputFile,maxOrCP):
-    val=os.popen('echo '+password+' | sudo -S '+OSACAPath+' --arch TSV110 '+str(inputFile))#  -timeline -show-encoding -all-stats -all-views
+    val=os.popen('echo '+password+' | python '+OSACAPath+' --arch TSV110 '+str(inputFile))#  -timeline -show-encoding -all-stats -all-views
     list = val.readlines()
     if list:
         lineNum=1
@@ -72,6 +75,23 @@ def OSACA(password,inputFile,maxOrCP):
             print("osacaText:{}\n".format(list[resultLineNum]))
             pprint.pprint(list)
             raise e
+        # for match in it: 
+        #     resultList.append(float("0" + match.group()))
+        # if resultList:
+        #     LCD=resultList.pop()
+        #     CP=resultList.pop()
+        #     Max=max(resultList)
+        #     if maxOrCP == "max":
+        #         return Max
+        #     elif maxOrCP == "CP":
+        #         return CP
+        #     elif maxOrCP == "LCD":
+        #         return LCD
+        #     else:
+        #         return -1
+        # else:
+        #     return -1
+
     else:
         return -1
 
@@ -102,7 +122,7 @@ def capstoneInput(block):
 
 def LLVM_mca(password,input):
     sys.stdout.flush()
-    val=os.popen('echo "'+input+'" | '+LLVM_mcaPath+' -iterations='+str(BHiveCount))#  -timeline -show-encoding -all-stats -all-views
+    val=os.popen('echo "'+input+'" | sudo '+LLVM_mcaPath+' -iterations='+str(BHiveCount))#  -timeline -show-encoding -all-stats -all-views
     list = val.readlines()
     #Total Cycles:      10005
     # print(list[2])
@@ -142,12 +162,12 @@ def checkBHiveResultStable(password,input,showinput,trytime):
     elif trytime>5:
         return -1
     sys.stdout.flush()
-    val=os.popen('echo '+password+' | sudo -S '+BHivePath+' '+str(BHiveCount)+input)
+    val=os.popen('echo '+password+' | sudo -S '+BHivePath+' '+input)
     list = val.readlines()
     if list is None or len(list)==0:
         regexResult=None
     else:
-        regexResult=re.search("core cyc: ([0-9]*)",list[-1])
+        regexResult=re.search("Event num: ([0-9]*)",list[-1])
     if regexResult:
         resultCycle=regexResult.group(1)
         return resultCycle
@@ -168,7 +188,7 @@ def BHive(password,input,showinput,trytime):
     # print("before main {}/{} {}".format(order,num_file,showinput))
     sys.stdout.flush()
     # begin_time=time.time()
-    val=os.popen('echo '+password+' | sudo -S '+BHivePath+' '+str(BHiveCount)+input)
+    val=os.popen('echo '+password+' | sudo -S '+BHivePath+' '+input)
     # call_main_time=time.time()-begin_time
     # print("after  main {}/{} {}s".format(order,num_file,call_main_time))
     # sys.stdout.flush()
@@ -182,15 +202,16 @@ def BHive(password,input,showinput,trytime):
     if list is None or len(list)==0:
         regexResult=None
     else:
-        regexResult=re.search("core cyc: ([0-9]*)",list[-1])
+        regexResult=re.search("Event num: ([0-9]*)",list[-1])
     if regexResult:
         resultCycle=regexResult.group(1)
         # print(resultCycle)
-        checkCycle=checkBHiveResultStable(password,input,showinput,0)
-        if arroundPercent(5,resultCycle,checkCycle):
-            return resultCycle
-        else:
-            return BHive(password,input,showinput,trytime+1)   
+        return resultCycle
+	#checkCycle=checkBHiveResultStable(password,input,showinput,0)
+        #if arroundPercent(5,resultCycle,checkCycle):
+        #    return resultCycle
+        #else:
+        #    return BHive(password,input,showinput,trytime+1)   
     else:
         # print("trytime: {} {}".format(trytime ,list[-1]))
         # print("else {}/{} {}".format(order,num_file,input))
@@ -205,6 +226,17 @@ def BHiveInput(block):
         # print(i)
         input2word+=" 0x"+block[i*9:i*9+2]+" 0x"+block[i*9+2:i*9+4]
         input2word+=" 0x"+block[i*9+4:i*9+6]+" 0x"+block[i*9+6:i*9+8]
+    # print(input2word)
+    return input2word
+
+def BHiveInputDel0xSpace(block):
+    # print(block)
+    # print((len(block)+1)/9)
+    input2word=""
+    for i in range(int((len(block)+1)/9)):
+        # print(i)
+        input2word+=block[i*9:i*9+2]+block[i*9+2:i*9+4]
+        input2word+=block[i*9+4:i*9+6]+block[i*9+6:i*9+8]
     # print(input2word)
     return input2word
 
@@ -260,7 +292,7 @@ def paralleReadProcess(rank,password, startFileLine,endFileLine,unique_revBibloc
         unique_revBiblock.add(block)
         frequencyRevBiBlock[block] += int(num)
         # print("     rank{}:block{}".format(rank,block))
-        BhiveCyclesRevBiBlock[block] = BHive(password,BHiveInput(block),BHiveInputDel0x(block),0)
+        BhiveCyclesRevBiBlock[block] = BHive(password,BHiveInputDel0xSpace(block),BHiveInputDel0xSpace(block),0)
         # print("         rank{}:block{}______{}".format(rank,block,BhiveCyclesRevBiBlock[block]))
         llvmmcaCyclesRevBiBlock[block] = LLVM_mca(password,capstone(capstoneInput(block)))
         OSACAInput=saveOSACAInput2File(capstoneList(capstoneInput(block)),rank)
@@ -520,8 +552,8 @@ def excelGraphBuild(wb):
 
 if __name__ == "__main__":
     global filename,taskfilenameprefixWithoutPath,taskfilenameprefix
-    print("请输入sudo密码")
-    password=input("password:")
+    # print("请输入sudo密码")
+    password="acsa1411"
     checkFile(taskfilePath)
     wb = Workbook()
     excelGraphInit(wb)
@@ -547,6 +579,8 @@ if __name__ == "__main__":
         print("blockSize {} {}".format(len(unique_revBiblock),len(frequencyRevBiBlock)))
         saveAllResult(taskfilenameprefix,unique_revBiblock,frequencyRevBiBlock,OSACAmaxCyclesRevBiBlock,OSACACPCyclesRevBiBlock,BhiveCyclesRevBiBlock,accuracyMax,accuracyCP,llvmmcaCyclesRevBiBlock,accuracyLLVM)
         [llvmerror,osacaerror] = add2Excel(wb,taskName,isFirstSheet,unique_revBiblock,frequencyRevBiBlock,OSACAmaxCyclesRevBiBlock,OSACACPCyclesRevBiBlock,OSACALCDCyclesRevBiBlock,BhiveCyclesRevBiBlock,accuracyMax,accuracyCP,llvmmcaCyclesRevBiBlock,accuracyLLVM)
+        # add2Excel(wb,taskName,isFirstSheet,unique_revBiblock,frequencyRevBiBlock,OSACAmaxCyclesRevBiBlock,OSACACPCyclesRevBiBlock,OSACALCDCyclesRevBiBlock,BhiveCyclesRevBiBlock,accuracyMax,accuracyCP,llvmmcaCyclesRevBiBlock,accuracyLLVM)
         excelGraphAdd(wb,taskName,llvmerror,osacaerror)
         isFirstSheet=0
     excelGraphBuild(wb)
+    # wb.save(excelOutPath)
