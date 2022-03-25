@@ -30,12 +30,12 @@ taskList={
     # "tensorflow_test_100":"tensorflow_1",
     #         "tensorflow_test_5":"tensorflow_2",
     #         "tensorflow_test_3":"tensorflow_3",
-            "test_insns_blockFrequency_skip_2":"test_insns"}
-            # "clang_harness_00all_skip_2":"Clang",
-            # "tensorflow_41Gdir_00all_skip_2":"Tensorflow",
-            # "MM_median_all_skip_2":"Eigen",
-            # "Gzip_all_skip_2":"Gzip",
-            # "redis_r1000000_n2000000_P16_all_skip_2":"Redis"}
+    #         "test_insns_blockFrequency_skip_2":"test_insns"}
+            "clang_harness_00all_skip_2":"Clang",
+            "tensorflow_41Gdir_00all_skip_2":"Tensorflow",
+            "MM_median_all_skip_2":"Eigen",
+            "Gzip_all_skip_2":"Gzip",
+            "redis_r1000000_n2000000_P16_all_skip_2":"Redis"}
 excelOutPath = taskfilePath+'/Summary.xlsx'
 # OSACAPath="/home/shaojiemike/github/OSACA-feature-tsv110/newOSACA/bin/osaca "
 OSACAPath="/home/shaojiemike/github/qcjiang/OSACA/qcjiangOSACA/bin/osaca"
@@ -43,13 +43,13 @@ LLVM_mcaPath="/home/shaojiemike/Install/llvm/bin/llvm-mca"
 BHivePath="/home/shaojiemike/test/bhive-re/bhive/main"
 saveInfo="0324newOSACAagain"
 BHiveCount=100
-ProcessNum=30
+ProcessNum=10
 
 
 def is_positive(value):
     value = int(value)
-    if value <= 0:
-         raise TypeError("%s is an invalid positive int value" % value)
+    if value < 0:
+        return False
     return True
 
 def time2String(timeNum):
@@ -88,7 +88,7 @@ def barString(name,current=0,total=-1):
         retSting=retSting.ljust(spaceNum+len(retSting),space)
         retSting=retSting.ljust(leftNum+len(retSting),' ')
         retSting+="| {} [{}<{}, {} s/it]".format(str(current)+"/"+str(total),time2String(pastTime),time2String(restTime),time2String(lastTime))
-        return retSting
+    return retSting 
 
 def display_info(str, x, y, colorpair=2):
     '''''使用指定的colorpair显示文字'''  
@@ -104,6 +104,7 @@ def set_win():
     #文字和背景色设置，设置了两个color pair，分别为1和2
     curses.init_pair(1, curses.COLOR_GREEN, curses.COLOR_BLACK)
     curses.init_pair(2, curses.COLOR_RED, curses.COLOR_BLACK)
+    curses.init_pair(3, curses.COLOR_WHITE, curses.COLOR_BLACK)
     #关闭屏幕回显
     curses.noecho()
     #输入时不需要回车确认
@@ -121,40 +122,61 @@ def unset_win():
     #结束窗口
     curses.endwin()
 
-
+def clearBarInfo():
+    barTotalNum.clear()
+    barStartTime.clear()
+    barBeforeTime.clear()
+    barName.clear()
 
 def multBarCore(stdscr,Msg,ProcessNum,total,sendPipe,receivePipe):
     set_win()
     # set total num
-    for ProcessID in range(ProcessNum):     
+    totalNum=0
+    totalSum=0
+    for ProcessID in range(ProcessNum):    
+        totalNum+=1 
+        totalSum+=total[ProcessID]
         display_info(barString(ProcessID,0,total[ProcessID]),0,ProcessID+1,1)
-
+    display_info(barString("Sum",0,totalSum),0,totalNum+1,3)
     #close parent sendPipe
     for ProcessID , sendID in sendPipe.items():
         sendID.close()
 
     remainReceive=1
     whileTimes=0
+    finishCurrentSum=0
     while remainReceive:
         whileTimes+=1
         display_info("check time: "+str(whileTimes),0,0,2)
         remainReceive=0
         deleteReceivePipeID=[]
+        tmpCurrentSum=finishCurrentSum
         for ProcessID , receiveID in receivePipe.items():
-            msg=receiveID.recv()
-            display_info(barString(ProcessID,msg),0,ProcessID+1,1)
-            if(msg>=barTotalNum[ProcessID]):
+            if barTotalNum[ProcessID]>0:
+                try:
+                    msg=receiveID.recv()
+                except Exception  as e:
+                    print("{} {} {}".format(e,ProcessID,barTotalNum[ProcessID]))
+                    msg=barTotalNum[ProcessID]
+                tmpCurrentSum+=msg
+                display_info(barString(ProcessID,msg),0,ProcessID+1,1)
+                if(msg>=barTotalNum[ProcessID]):
+                    deleteReceivePipeID.append(ProcessID)
+                remainReceive=1
+            else:
                 deleteReceivePipeID.append(ProcessID)
-            remainReceive=1
+        display_info(barString("Sum",tmpCurrentSum),0,totalNum+1,3)
         for ProcessID in deleteReceivePipeID:
+            finishCurrentSum+=barTotalNum[ProcessID]
             del receivePipe[ProcessID]
+    clearBarInfo()
     unset_win()
 
 def multBar(Msg,ProcessNum,total,sendPipe,receivePipe):
     processBeginTime=time.time()
-    print("{} : start Process at: {}".format(Msg,time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())))
+    yellowPrint("{} : start Process at: {}".format(Msg,time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())))
     wrapper(multBarCore,"task1",ProcessNum,total,sendPipe,receivePipe)  
-    print("{} : wait Process to finish: {}".format(Msg,time2String(int(time.time()-processBeginTime))))
+    passPrint("{} : wait Process to finish: {}".format(Msg,time2String(int(time.time()-processBeginTime))))
 
 
 def OSACA(password,inputFile,maxOrCP):
@@ -445,13 +467,13 @@ def readPartFile(password, unique_revBiblock,frequencyRevBiBlock,OSACAmaxCyclesR
 
     multBar("task1",ProcessNum,total,sendPipe,receivePipe)
     
-    # while unique_revBiblock_Queue.qsize()<ProcessNum:
-    #     print("QueueNum : {}".format(unique_revBiblock_Queue.qsize()))
-    #     sys.stdout.flush()
-    #     time.sleep(5)
+    while unique_revBiblock_Queue.qsize()<ProcessNum:
+        print("QueueNum : {}".format(unique_revBiblock_Queue.qsize()))
+        sys.stdout.flush()
+        time.sleep(5)
     # for i in tqdm(range(ProcessNum)):
     for i in range(ProcessNum):
-        print("MPISum rank : {}, blockNum : {},leftQueueNum : {}".format(i,len(unique_revBiblock),unique_revBiblock_Queue.qsize()))
+        # print("MPISum rank : {}, blockNum : {},leftQueueNum : {}".format(i,len(unique_revBiblock),unique_revBiblock_Queue.qsize()))
         unique_revBiblock=unique_revBiblock.union(unique_revBiblock_Queue.get())
         frequencyRevBiBlock.update(frequencyRevBiBlock_Queue.get())
         llvmmcaCyclesRevBiBlock.update(llvmmcaCyclesRevBiBlock_Queue.get())

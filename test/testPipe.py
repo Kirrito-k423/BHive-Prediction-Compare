@@ -13,7 +13,7 @@ stdscr = curses.initscr()
 def is_positive(value):
     value = int(value)
     if value <= 0:
-         raise TypeError("%s is an invalid positive int value" % value)
+        return False
     return True
 
 def time2String(timeNum):
@@ -68,6 +68,7 @@ def set_win():
     #文字和背景色设置，设置了两个color pair，分别为1和2
     curses.init_pair(1, curses.COLOR_GREEN, curses.COLOR_BLACK)
     curses.init_pair(2, curses.COLOR_RED, curses.COLOR_BLACK)
+    curses.init_pair(3, curses.COLOR_WHITE, curses.COLOR_BLACK)
     #关闭屏幕回显
     curses.noecho()
     #输入时不需要回车确认
@@ -97,27 +98,36 @@ def sonProcess(ProcessID,sendPipe):
 def multBarCore(stdscr,Msg,ProcessNum,total,sendPipe,receivePipe):
     set_win()
     # set total num
-    for ProcessID in range(ProcessNum):     
+    totalNum=0
+    totalSum=0
+    for ProcessID in range(ProcessNum):    
+        totalNum+=1 
+        totalSum+=total[ProcessID]
         display_info(barString(ProcessID,0,total[ProcessID]),0,ProcessID+1,1)
-
+    display_info(barString("Sum",0,totalSum),0,totalNum+1,3)
     #close parent sendPipe
     for ProcessID , sendID in sendPipe.items():
         sendID.close()
 
     remainReceive=1
     whileTimes=0
+    finishCurrentSum=0
     while remainReceive:
         whileTimes+=1
         display_info("check time: "+str(whileTimes),0,0,2)
         remainReceive=0
         deleteReceivePipeID=[]
+        tmpCurrentSum=finishCurrentSum
         for ProcessID , receiveID in receivePipe.items():
             msg=receiveID.recv()
+            tmpCurrentSum+=msg
             display_info(barString(ProcessID,msg),0,ProcessID+1,1)
             if(msg>=barTotalNum[ProcessID]):
                 deleteReceivePipeID.append(ProcessID)
             remainReceive=1
+        display_info(barString("Sum",tmpCurrentSum),0,totalNum+1,3)
         for ProcessID in deleteReceivePipeID:
+            finishCurrentSum+=barTotalNum[ProcessID]
             del receivePipe[ProcessID]
     unset_win()
 
