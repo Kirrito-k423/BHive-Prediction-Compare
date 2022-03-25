@@ -2,8 +2,7 @@
 from tsjPython.tsjCommonFunc import *
 from multiprocessing import Process, Pipe
 import curses
-from curses import wrapper
-ProcessNum=3
+ProcessNum=10
 barTotalNum=dict()
 barStartTime=dict()
 barBeforeTime=dict()
@@ -69,11 +68,11 @@ def set_win():
     curses.init_pair(1, curses.COLOR_GREEN, curses.COLOR_BLACK)
     curses.init_pair(2, curses.COLOR_RED, curses.COLOR_BLACK)
     #关闭屏幕回显
-    curses.noecho()
+    # curses.noecho()
     #输入时不需要回车确认
-    curses.cbreak()
+    # curses.cbreak()
     #设置nodelay，使得控制台可以以非阻塞的方式接受控制台输入，超时1秒
-    stdscr.nodelay(1)
+    # stdscr.nodelay(1)
 
 def unset_win():
     '''控制台重置'''
@@ -94,8 +93,9 @@ def sonProcess(ProcessID,sendPipe):
         sendPipe.send(i+1)
     sendPipe.close()
 
-def multBarCore(stdscr,Msg,ProcessNum,total,sendPipe,receivePipe):
-    set_win()
+def multBar(Msg,ProcessNum,total,sendPipe,receivePipe):
+    processBeginTime=time.time()
+    print("{} : start Process at: {}".format(Msg,time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())))
     # set total num
     for ProcessID in range(ProcessNum):     
         display_info(barString(ProcessID,0,total[ProcessID]),0,ProcessID+1,1)
@@ -120,36 +120,23 @@ def multBarCore(stdscr,Msg,ProcessNum,total,sendPipe,receivePipe):
         for ProcessID in deleteReceivePipeID:
             del receivePipe[ProcessID]
     unset_win()
-
-def multBar(Msg,ProcessNum,total,sendPipe,receivePipe):
-    processBeginTime=time.time()
-    print("{} : start Process at: {}".format(Msg,time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())))
-    wrapper(multBarCore,"task1",ProcessNum,total,sendPipe,receivePipe)  
     print("{} : wait Process to finish: {}".format(Msg,time2String(int(time.time()-processBeginTime))))
 
 if __name__ == "__main__":
     sendPipe=dict()
     receivePipe=dict()
     total=dict()
-    
-    # print("11223",end="\n\r")
-    # print("11223")
-    # print("11223\n",end="\n\r")
-    # password=input("password:")
-
-    for i in range(ProcessNum):
-        receivePipe[i], sendPipe[i] = Pipe(False)
-        total[i]=i*10+10
-        p = Process(target=sonProcess,args=(i,sendPipe[i]))
-        p.start()
-    print("11223",end="\n\r")
-    print("11223")
-    print("11223\n",end="\n\r")
-    # password=input("password:")
-
-    multBar("task1",ProcessNum,total,sendPipe,receivePipe)
-    
+    set_win()
+    unset_win()
+    # curses.nonl()
+    # curses.noraw()
     print("11223",end="\n\r")
     print("11223")
     print("11223\n",end="\n\r")
     password=input("password:")
+
+    
+
+    # multBar("task1",ProcessNum,total,sendPipe,receivePipe)
+    
+        

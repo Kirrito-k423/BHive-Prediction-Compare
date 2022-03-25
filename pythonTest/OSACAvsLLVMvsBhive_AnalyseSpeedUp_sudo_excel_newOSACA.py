@@ -14,18 +14,28 @@ import datetime
 from openpyxl import Workbook
 from openpyxl.chart import BarChart, PieChart, LineChart, Reference
 import pprint
+from tsjPython.tsjCommonFunc import *
+from multiprocessing import Process, Pipe
+import curses
+from curses import wrapper
+
+barTotalNum=dict()
+barStartTime=dict()
+barBeforeTime=dict()
+barName=set()
+stdscr = curses.initscr()
 
 taskfilePath="/home/shaojiemike/blockFrequency"
 taskList={
     # "tensorflow_test_100":"tensorflow_1",
     #         "tensorflow_test_5":"tensorflow_2",
     #         "tensorflow_test_3":"tensorflow_3",
-            "test_insns_blockFrequency_skip_2":"test_insns",
-            "clang_harness_00all_skip_2":"Clang",
-            "tensorflow_41Gdir_00all_skip_2":"Tensorflow",
-            "MM_median_all_skip_2":"Eigen",
-            "Gzip_all_skip_2":"Gzip",
-            "redis_r1000000_n2000000_P16_all_skip_2":"Redis"}
+            "test_insns_blockFrequency_skip_2":"test_insns"}
+            # "clang_harness_00all_skip_2":"Clang",
+            # "tensorflow_41Gdir_00all_skip_2":"Tensorflow",
+            # "MM_median_all_skip_2":"Eigen",
+            # "Gzip_all_skip_2":"Gzip",
+            # "redis_r1000000_n2000000_P16_all_skip_2":"Redis"}
 excelOutPath = taskfilePath+'/Summary.xlsx'
 # OSACAPath="/home/shaojiemike/github/OSACA-feature-tsv110/newOSACA/bin/osaca "
 OSACAPath="/home/shaojiemike/github/qcjiang/OSACA/qcjiangOSACA/bin/osaca"
@@ -34,6 +44,118 @@ BHivePath="/home/shaojiemike/test/bhive-re/bhive/main"
 saveInfo="0324newOSACAagain"
 BHiveCount=100
 ProcessNum=30
+
+
+def is_positive(value):
+    value = int(value)
+    if value <= 0:
+         raise TypeError("%s is an invalid positive int value" % value)
+    return True
+
+def time2String(timeNum):
+    if timeNum < 3600:
+        minutes=timeNum//60
+        secends=timeNum%60
+        return "{:0>2d}:{:0>2d}".format(minutes,secends)
+    else:
+        hour=timeNum//3600
+        minutes=(timeNum-hour*3600)//60
+        secends=timeNum%60
+        return "{:0>2d}:{:0>2d}:{:0>2d}".format(hour,minutes,secends)
+
+def barString(name,current=0,total=-1):
+    global barBeforeTime,barName,barStartTime,barTotalNum
+    retSting=""
+    if name not in barName:
+        if is_positive(total):
+            barName.add(name)
+            barBeforeTime[name]=time.time()
+            barStartTime[name]=time.time()
+            barTotalNum[name]=total
+        return "bar is ready……"
+    elif is_positive(current):
+        if barTotalNum[name]<current:
+            current=barTotalNum[name]
+        total=barTotalNum[name]
+        lastTime=int(time.time()-barBeforeTime[name])
+        pastTime=int(time.time()-barStartTime[name])
+        restTime=int(pastTime/current*(total-current))
+        barBeforeTime[name]=time.time()
+        retSting+="[{}:{:3d}%] > |".format(format(name," <10"),int(100*current/total))  #█
+        space='█'
+        spaceNum=int(format(100*current/total,'0>2.0f'))
+        leftNum=100-spaceNum
+        retSting=retSting.ljust(spaceNum+len(retSting),space)
+        retSting=retSting.ljust(leftNum+len(retSting),' ')
+        retSting+="| {} [{}<{}, {} s/it]".format(str(current)+"/"+str(total),time2String(pastTime),time2String(restTime),time2String(lastTime))
+        return retSting
+
+def display_info(str, x, y, colorpair=2):
+    '''''使用指定的colorpair显示文字'''  
+    global stdscr
+    stdscr.addstr(y, x,str, curses.color_pair(colorpair))
+    stdscr.refresh()
+
+def set_win():
+    '''''控制台设置'''
+    global stdscr
+    #使用颜色首先需要调用这个方法
+    curses.start_color()
+    #文字和背景色设置，设置了两个color pair，分别为1和2
+    curses.init_pair(1, curses.COLOR_GREEN, curses.COLOR_BLACK)
+    curses.init_pair(2, curses.COLOR_RED, curses.COLOR_BLACK)
+    #关闭屏幕回显
+    curses.noecho()
+    #输入时不需要回车确认
+    curses.cbreak()
+    #设置nodelay，使得控制台可以以非阻塞的方式接受控制台输入，超时1秒
+    stdscr.nodelay(1)
+
+def unset_win():
+    '''控制台重置'''
+    global stdstr
+    #恢复控制台默认设置（若不恢复，会导致即使程序结束退出了，控制台仍然是没有回显的）
+    curses.nocbreak()
+    stdscr.keypad(0)
+    curses.echo()
+    #结束窗口
+    curses.endwin()
+
+
+
+def multBarCore(stdscr,Msg,ProcessNum,total,sendPipe,receivePipe):
+    set_win()
+    # set total num
+    for ProcessID in range(ProcessNum):     
+        display_info(barString(ProcessID,0,total[ProcessID]),0,ProcessID+1,1)
+
+    #close parent sendPipe
+    for ProcessID , sendID in sendPipe.items():
+        sendID.close()
+
+    remainReceive=1
+    whileTimes=0
+    while remainReceive:
+        whileTimes+=1
+        display_info("check time: "+str(whileTimes),0,0,2)
+        remainReceive=0
+        deleteReceivePipeID=[]
+        for ProcessID , receiveID in receivePipe.items():
+            msg=receiveID.recv()
+            display_info(barString(ProcessID,msg),0,ProcessID+1,1)
+            if(msg>=barTotalNum[ProcessID]):
+                deleteReceivePipeID.append(ProcessID)
+            remainReceive=1
+        for ProcessID in deleteReceivePipeID:
+            del receivePipe[ProcessID]
+    unset_win()
+
+def multBar(Msg,ProcessNum,total,sendPipe,receivePipe):
+    processBeginTime=time.time()
+    print("{} : start Process at: {}".format(Msg,time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())))
+    wrapper(multBarCore,"task1",ProcessNum,total,sendPipe,receivePipe)  
+    print("{} : wait Process to finish: {}".format(Msg,time2String(int(time.time()-processBeginTime))))
+
 
 def OSACA(password,inputFile,maxOrCP):
     val=os.popen('echo '+password+' | sudo -S '+OSACAPath+' --arch TSV110 '+str(inputFile))#  -timeline -show-encoding -all-stats -all-views
@@ -239,8 +361,8 @@ def calculateAccuracyLLVM(accurateCycles,predictionCycles):
         gap=abs(int(predictionCycles)-int(accurateCycles))
         return int(gap)/int(accurateCycles) # accuracy variable is error
 
-def paralleReadProcess(rank,password, startFileLine,endFileLine,unique_revBiblock_Queue,frequencyRevBiBlock_Queue,OSACAmaxCyclesRevBiBlock_Queue,OSACACPCyclesRevBiBlock_Queue,OSACALCDCyclesRevBiBlock_Queue,BhiveCyclesRevBiBlock_Queue,accuracyMax_Queue,accuracyCP_Queue,llvmmcaCyclesRevBiBlock_Queue,accuracyLLVM_Queue):
-    print("MPI Process Start {:2d} {}~{}".format(rank,startFileLine,endFileLine))
+def paralleReadProcess(sendPipe,rank,password, startFileLine,endFileLine,unique_revBiblock_Queue,frequencyRevBiBlock_Queue,OSACAmaxCyclesRevBiBlock_Queue,OSACACPCyclesRevBiBlock_Queue,OSACALCDCyclesRevBiBlock_Queue,BhiveCyclesRevBiBlock_Queue,accuracyMax_Queue,accuracyCP_Queue,llvmmcaCyclesRevBiBlock_Queue,accuracyLLVM_Queue):
+    # print("MPI Process Start {:2d} {}~{}".format(rank,startFileLine,endFileLine))
     fread=open(filename, 'r')
     unique_revBiblock=set()
     frequencyRevBiBlock = defaultdict(int)
@@ -252,8 +374,11 @@ def paralleReadProcess(rank,password, startFileLine,endFileLine,unique_revBibloc
     accuracyLLVM = defaultdict(float)
     accuracyMax = defaultdict(float)
     accuracyCP = defaultdict(float)
-    for line in tqdm(fread.readlines()[startFileLine:endFileLine],total=endFileLine-startFileLine,desc=str("{:2d}".format(rank))):
-    # for line in fread:
+    # for line in tqdm(fread.readlines()[startFileLine:endFileLine],total=endFileLine-startFileLine,desc=str("{:2d}".format(rank))):
+    i=1
+    for line in fread.readlines()[startFileLine:endFileLine]:
+        sendPipe.send(i)
+        i+=1
         # print("rank{}".format(rank))
         block=re.search('^(.*),',line).group(1)
         num=re.search(',(.*)$',line).group(1)
@@ -286,7 +411,8 @@ def paralleReadProcess(rank,password, startFileLine,endFileLine,unique_revBibloc
     accuracyLLVM_Queue.put(accuracyLLVM)
     accuracyMax_Queue.put(accuracyMax)
     accuracyCP_Queue.put(accuracyCP)
-    print("MPI Process end {:2d} {}~{}".format(rank,startFileLine,endFileLine))
+    sendPipe.close()
+    # print("MPI Process end {:2d} {}~{}".format(rank,startFileLine,endFileLine))
 
 def readPartFile(password, unique_revBiblock,frequencyRevBiBlock,OSACAmaxCyclesRevBiBlock,OSACACPCyclesRevBiBlock,OSACALCDCyclesRevBiBlock,BhiveCyclesRevBiBlock,accuracyMax,accuracyCP,llvmmcaCyclesRevBiBlock,accuracyLLVM):
     global num_file,ProcessNum
@@ -305,16 +431,24 @@ def readPartFile(password, unique_revBiblock,frequencyRevBiBlock,OSACAmaxCyclesR
     accuracyMax_Queue=Queue()
     accuracyCP_Queue=Queue()
 
+    sendPipe=dict()
+    receivePipe=dict()
+    total=dict()
+
     for i in range(ProcessNum):
         startFileLine=int(i*num_file/ProcessNum)
         endFileLine=int((i+1)*num_file/ProcessNum)
-        p = Process(target=paralleReadProcess, args=(i,password, startFileLine,endFileLine,unique_revBiblock_Queue,frequencyRevBiBlock_Queue,OSACAmaxCyclesRevBiBlock_Queue,OSACACPCyclesRevBiBlock_Queue,OSACALCDCyclesRevBiBlock_Queue,BhiveCyclesRevBiBlock_Queue,accuracyMax_Queue,accuracyCP_Queue,llvmmcaCyclesRevBiBlock_Queue,accuracyLLVM_Queue))
+        receivePipe[i], sendPipe[i] = Pipe(False)
+        total[i]=endFileLine-startFileLine
+        p = Process(target=paralleReadProcess, args=(sendPipe[i],i,password, startFileLine,endFileLine,unique_revBiblock_Queue,frequencyRevBiBlock_Queue,OSACAmaxCyclesRevBiBlock_Queue,OSACACPCyclesRevBiBlock_Queue,OSACALCDCyclesRevBiBlock_Queue,BhiveCyclesRevBiBlock_Queue,accuracyMax_Queue,accuracyCP_Queue,llvmmcaCyclesRevBiBlock_Queue,accuracyLLVM_Queue))
         p.start()
 
-    while unique_revBiblock_Queue.qsize()<ProcessNum:
-        print("QueueNum : {}".format(unique_revBiblock_Queue.qsize()))
-        sys.stdout.flush()
-        time.sleep(5)
+    multBar("task1",ProcessNum,total,sendPipe,receivePipe)
+    
+    # while unique_revBiblock_Queue.qsize()<ProcessNum:
+    #     print("QueueNum : {}".format(unique_revBiblock_Queue.qsize()))
+    #     sys.stdout.flush()
+    #     time.sleep(5)
     # for i in tqdm(range(ProcessNum)):
     for i in range(ProcessNum):
         print("MPISum rank : {}, blockNum : {},leftQueueNum : {}".format(i,len(unique_revBiblock),unique_revBiblock_Queue.qsize()))
@@ -520,8 +654,11 @@ def excelGraphBuild(wb):
 
 if __name__ == "__main__":
     global filename,taskfilenameprefixWithoutPath,taskfilenameprefix
-    print("请输入sudo密码")
-    password=input("password:")
+    # set_win()
+    # unset_win()
+    # print("请输入sudo密码")
+    # password=input("password:")
+    password="acsa1411"
     checkFile(taskfilePath)
     wb = Workbook()
     excelGraphInit(wb)
