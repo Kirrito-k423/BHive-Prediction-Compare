@@ -100,7 +100,8 @@ def display_info(str, x, y, colorpair=2):
     try:
         stdscr.addstr(y, x,str, curses.color_pair(colorpair))
     except curses.error:
-        stdscr.addstr(y, x,"pls wider your windows to show Bar!!!", curses.color_pair(colorpair))
+        # stdscr.addstr(y, x,"pls wider your windows to show Bar!!!", curses.color_pair(colorpair))
+        pass
     stdscr.refresh()
 
 def set_win():

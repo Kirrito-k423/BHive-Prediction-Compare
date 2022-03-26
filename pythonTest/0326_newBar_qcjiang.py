@@ -38,7 +38,7 @@ taskList={        "clang_harness_00all_skip_2":"Clang",
                 "MM_median_all_skip_2":"Eigen",
                 "Gzip_all_skip_2":"Gzip",
                 "redis_r1000000_n2000000_P16_all_skip_2":"Redis"}
-excelOutPath = taskfilePath+'/Summary.xlsx'
+
 # OSACAPath="/home/shaojiemike/github/OSACA-feature-tsv110/newOSACA/bin/osaca "
 OSACAPath="/home/qcjiang/softwares/anaconda3/bin/osaca"
 LLVM_mcaPath="/home/qcjiang/codes/llvm-project/build/bin/llvm-mca"
@@ -46,6 +46,7 @@ BHivePath="/home/qcjiang/codes/KunpengWorkload/micro_benchmarks/bhive-reg/main"
 #          /home/qcjiang/codes/KunpengWorkload/micro_benchmarks/bhive-reg/main
 saveInfo="0222newOSACAagain"
 BHiveCount=500
+excelOutPath = taskfilePath+'/Summary_BHiveCount'+str(BHiveCount)+'.xlsx'
 ProcessNum=30
 
 
@@ -103,7 +104,8 @@ def display_info(str, x, y, colorpair=2):
     try:
         stdscr.addstr(y, x,str, curses.color_pair(colorpair))
     except curses.error:
-        stdscr.addstr(y, x,"pls wider your windows to show Bar!!!", curses.color_pair(colorpair))
+        # stdscr.addstr(y, x,"pls wider your windows to show Bar!!!", curses.color_pair(colorpair))
+        pass
     stdscr.refresh()
 
 def set_win():
@@ -492,7 +494,7 @@ def readPartFile(taskName,password, unique_revBiblock,frequencyRevBiBlock,OSACAm
 
     multBar(taskName,ProcessNum,total,sendPipe,receivePipe)
     
-        while unique_revBiblock_Queue.qsize()<ProcessNum:
+    while unique_revBiblock_Queue.qsize()<ProcessNum:
         print("QueueNum : {}".format(unique_revBiblock_Queue.qsize()))
         sys.stdout.flush()
         time.sleep(5)
