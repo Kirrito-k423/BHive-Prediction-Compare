@@ -28,8 +28,8 @@ stdscr = curses.initscr()
 taskfilePath="/home/shaojiemike/blockFrequency"
 taskList={
     "tensorflow_test_100":"tensorflow_1",
-            "tensorflow_test_5":"tensorflow_2",
-            "tensorflow_test_3":"tensorflow_3",
+            # "tensorflow_test_5":"tensorflow_2",
+            # "tensorflow_test_3":"tensorflow_3",
             "test_insns_blockFrequency_skip_2":"test_insns"}
             # "clang_harness_00all_skip_2":"Clang",
             # "tensorflow_41Gdir_00all_skip_2":"Tensorflow",
@@ -79,7 +79,10 @@ def barString(name,current=0,total=-1):
         total=barTotalNum[name]
         lastTime=int(time.time()-barBeforeTime[name])
         pastTime=int(time.time()-barStartTime[name])
-        restTime=int(pastTime/current*(total-current))
+        if current > 0:
+            restTime=int(pastTime/current*(total-current))
+        else:
+            restTime=0
         barBeforeTime[name]=time.time()
         retSting+="[{}:{:3d}%] > |".format(format(name," <10"),int(100*current/total))  #█
         space='█'
@@ -94,7 +97,10 @@ def display_info(str, x, y, colorpair=2):
     '''''使用指定的colorpair显示文字'''  
     global stdscr
     stdscr.clrtoeol()
-    stdscr.addstr(y, x,str, curses.color_pair(colorpair))
+    try:
+        stdscr.addstr(y, x,str, curses.color_pair(colorpair))
+    except curses.error:
+        stdscr.addstr(y, x,"pls wider your windows to show Bar!!!", curses.color_pair(colorpair))
     stdscr.refresh()
 
 def set_win():
@@ -145,31 +151,34 @@ def multBarCore(stdscr,Msg,ProcessNum,total,sendPipe,receivePipe):
 
     remainReceive=1
     whileTimes=0
-    finishCurrentSum=0
+    currentTmp=dict()
     while remainReceive:
         whileTimes+=1
         display_info(Msg+" check time: "+str(whileTimes),0,0,2)
         remainReceive=0
-        deleteReceivePipeID=[]
-        tmpCurrentSum=finishCurrentSum
+        deleteReceivePipeID=[] 
         for ProcessID , receiveID in receivePipe.items():
             if barTotalNum[ProcessID]>0:
-                try:
-                    msg=receiveID.recv()
-                except Exception  as e:
-                    print("{} {} {}".format(e,ProcessID,barTotalNum[ProcessID]))
-                    msg=barTotalNum[ProcessID]
-                tmpCurrentSum+=msg
-                display_info(barString(ProcessID,msg),0,ProcessID+1,1)
-                if(msg>=barTotalNum[ProcessID]):
-                    deleteReceivePipeID.append(ProcessID)
+                if receiveID.poll():
+                    try:
+                        msg=receiveID.recv()
+                    except Exception  as e:
+                        print("{} {} {}".format(e,ProcessID,barTotalNum[ProcessID]))
+                        msg=barTotalNum[ProcessID]
+                    currentTmp[ProcessID]=msg
+                    display_info(barString(ProcessID,msg),0,ProcessID+1,1)
+                    if(msg>=barTotalNum[ProcessID]):
+                        deleteReceivePipeID.append(ProcessID)
                 remainReceive=1
             else:
                 deleteReceivePipeID.append(ProcessID)
+        tmpCurrentSum=0
+        for ProcessID , eachCurrent in currentTmp.items():
+            tmpCurrentSum+=eachCurrent
         display_info(barString("Sum",tmpCurrentSum),0,totalNum+1,3)
         for ProcessID in deleteReceivePipeID:
-            finishCurrentSum+=barTotalNum[ProcessID]
             del receivePipe[ProcessID]
+        time.sleep(0.2)
     clearBarInfo()
     unset_win()
 
