@@ -20,6 +20,7 @@ import curses
 from curses import wrapper
 
 barTotalNum=dict()
+barCurrentNum=dict()
 barStartTime=dict()
 barBeforeTime=dict()
 barName=set()
@@ -33,8 +34,9 @@ taskfilePath="/home/qcjiang/tests/bb_test/blockFrequency"
 # taskList={           "test_insns_blockFrequency_skip_2":"test_insns"}
 # taskList={ "test_insns_test_5":"test"}
 # taskList={ 
-taskList={        "clang_harness_00all_skip_2":"Clang",
+taskList={        
                 "tensorflow_41Gdir_00all_skip_2":"Tensorflow",
+                "clang_harness_00all_skip_2":"Clang",
                 "MM_median_all_skip_2":"Eigen",
                 "Gzip_all_skip_2":"Gzip",
                 "redis_r1000000_n2000000_P16_all_skip_2":"Redis"}
@@ -47,7 +49,7 @@ BHivePath="/home/qcjiang/codes/KunpengWorkload/micro_benchmarks/bhive-reg/main"
 saveInfo="0222newOSACAagain"
 BHiveCount=500
 excelOutPath = taskfilePath+'/Summary_BHiveCount'+str(BHiveCount)+'.xlsx'
-ProcessNum=30
+ProcessNum=15
 
 
 def is_positive(value):
@@ -57,11 +59,15 @@ def is_positive(value):
     return True
 
 def time2String(timeNum):
-    if timeNum < 3600:
+    if timeNum < 60:
+        return "{:.2f}".format(timeNum)
+    elif timeNum < 3600:
+        timeNum=int(timeNum)
         minutes=timeNum//60
         secends=timeNum%60
         return "{:0>2d}:{:0>2d}".format(minutes,secends)
     else:
+        timeNum=int(timeNum)
         hour=timeNum//3600
         minutes=(timeNum-hour*3600)//60
         secends=timeNum%60
@@ -76,18 +82,24 @@ def barString(name,current=0,total=-1):
             barBeforeTime[name]=time.time()
             barStartTime[name]=time.time()
             barTotalNum[name]=total
+            barCurrentNum[name]=0
         return "bar is ready……"
-    elif is_positive(current):
-        if barTotalNum[name]<current:
-            current=barTotalNum[name]
+    elif is_positive(current):       
         total=barTotalNum[name]
-        lastTime=int(time.time()-barBeforeTime[name])
-        pastTime=int(time.time()-barStartTime[name])
-        if current > 0:
-            restTime=int(pastTime/current*(total-current))
+        if total<current:
+            current=total
+        lastTime=time.time()-barBeforeTime[name]
+        if current > barCurrentNum[name]:
+            lastTime=lastTime/(current-barCurrentNum[name])
+            barCurrentNum[name]=current
+            barBeforeTime[name]=time.time()
         else:
-            restTime=0
-        barBeforeTime[name]=time.time()
+            current=barCurrentNum[name]
+        pastTime=time.time()-barStartTime[name]
+        if current > 0:
+            restTime=pastTime/current*(total-current)
+        else:
+            restTime=0   
         retSting+="[{}:{:3d}%] > |".format(format(name," <10"),int(100*current/total))  #█
         space='█'
         spaceNum=int(format(100*current/total,'0>2.0f'))
@@ -136,6 +148,7 @@ def unset_win():
 
 def clearBarInfo():
     barTotalNum.clear()
+    barCurrentNum.clear()
     barStartTime.clear()
     barBeforeTime.clear()
     barName.clear()
@@ -169,11 +182,13 @@ def multBarCore(stdscr,Msg,ProcessNum,total,sendPipe,receivePipe):
                         msg=receiveID.recv()
                     except Exception  as e:
                         print("{} {} {}".format(e,ProcessID,barTotalNum[ProcessID]))
-                        msg=barTotalNum[ProcessID]
+                        msg=0
                     currentTmp[ProcessID]=msg
                     display_info(barString(ProcessID,msg),0,ProcessID+1,1)
                     if(msg>=barTotalNum[ProcessID]):
                         deleteReceivePipeID.append(ProcessID)
+                else:
+                    display_info(barString(ProcessID,0),0,ProcessID+1,1)
                 remainReceive=1
             else:
                 deleteReceivePipeID.append(ProcessID)
@@ -181,6 +196,7 @@ def multBarCore(stdscr,Msg,ProcessNum,total,sendPipe,receivePipe):
         for ProcessID , eachCurrent in currentTmp.items():
             tmpCurrentSum+=eachCurrent
         display_info(barString("Sum",tmpCurrentSum),0,totalNum+1,3)
+        display_info("",0,totalNum+2,3)
         for ProcessID in deleteReceivePipeID:
             del receivePipe[ProcessID]
         time.sleep(0.2)
@@ -426,7 +442,8 @@ def paralleReadProcess(sendPipe,rank,password, startFileLine,endFileLine,unique_
     # for line in tqdm(fread.readlines()[startFileLine:endFileLine],total=endFileLine-startFileLine,desc=str("{:2d}".format(rank))):
     i=1
     for line in fread.readlines()[startFileLine:endFileLine]:
-        sendPipe.send(i)
+        if i%5==0:
+            sendPipe.send(i)
         i+=1
         # print("rank{}".format(rank))
         block=re.search('^(.*),',line).group(1)
@@ -460,6 +477,7 @@ def paralleReadProcess(sendPipe,rank,password, startFileLine,endFileLine,unique_
     accuracyLLVM_Queue.put(accuracyLLVM)
     accuracyMax_Queue.put(accuracyMax)
     accuracyCP_Queue.put(accuracyCP)
+    sendPipe.send(50000)
     sendPipe.close()
     # print("MPI Process end {:2d} {}~{}".format(rank,startFileLine,endFileLine))
 
