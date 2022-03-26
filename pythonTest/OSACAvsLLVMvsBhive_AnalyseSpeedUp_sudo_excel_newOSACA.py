@@ -27,15 +27,15 @@ stdscr = curses.initscr()
 
 taskfilePath="/home/shaojiemike/blockFrequency"
 taskList={
-    # "tensorflow_test_100":"tensorflow_1",
-    #         "tensorflow_test_5":"tensorflow_2",
-    #         "tensorflow_test_3":"tensorflow_3",
-    #         "test_insns_blockFrequency_skip_2":"test_insns"}
-            "clang_harness_00all_skip_2":"Clang",
-            "tensorflow_41Gdir_00all_skip_2":"Tensorflow",
-            "MM_median_all_skip_2":"Eigen",
-            "Gzip_all_skip_2":"Gzip",
-            "redis_r1000000_n2000000_P16_all_skip_2":"Redis"}
+    "tensorflow_test_100":"tensorflow_1",
+            "tensorflow_test_5":"tensorflow_2",
+            "tensorflow_test_3":"tensorflow_3",
+            "test_insns_blockFrequency_skip_2":"test_insns"}
+            # "clang_harness_00all_skip_2":"Clang",
+            # "tensorflow_41Gdir_00all_skip_2":"Tensorflow",
+            # "MM_median_all_skip_2":"Eigen",
+            # "Gzip_all_skip_2":"Gzip",
+            # "redis_r1000000_n2000000_P16_all_skip_2":"Redis"}
 excelOutPath = taskfilePath+'/Summary.xlsx'
 # OSACAPath="/home/shaojiemike/github/OSACA-feature-tsv110/newOSACA/bin/osaca "
 OSACAPath="/home/shaojiemike/github/qcjiang/OSACA/qcjiangOSACA/bin/osaca"
@@ -93,6 +93,7 @@ def barString(name,current=0,total=-1):
 def display_info(str, x, y, colorpair=2):
     '''''使用指定的colorpair显示文字'''  
     global stdscr
+    stdscr.clrtoeol()
     stdscr.addstr(y, x,str, curses.color_pair(colorpair))
     stdscr.refresh()
 
@@ -147,7 +148,7 @@ def multBarCore(stdscr,Msg,ProcessNum,total,sendPipe,receivePipe):
     finishCurrentSum=0
     while remainReceive:
         whileTimes+=1
-        display_info("check time: "+str(whileTimes),0,0,2)
+        display_info(Msg+" check time: "+str(whileTimes),0,0,2)
         remainReceive=0
         deleteReceivePipeID=[]
         tmpCurrentSum=finishCurrentSum
@@ -174,9 +175,9 @@ def multBarCore(stdscr,Msg,ProcessNum,total,sendPipe,receivePipe):
 
 def multBar(Msg,ProcessNum,total,sendPipe,receivePipe):
     processBeginTime=time.time()
-    yellowPrint("{} : start Process at: {}".format(Msg,time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())))
-    wrapper(multBarCore,"task1",ProcessNum,total,sendPipe,receivePipe)  
-    passPrint("{} : wait Process to finish: {}".format(Msg,time2String(int(time.time()-processBeginTime))))
+    yellowPrint("\r{} : start multiple Processes at: {}".format(Msg,time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())))
+    wrapper(multBarCore,Msg,ProcessNum,total,sendPipe,receivePipe)  
+    passPrint("{} : wait multiple Processes to finish: {}".format(Msg,time2String(int(time.time()-processBeginTime))))
 
 
 def OSACA(password,inputFile,maxOrCP):
@@ -436,7 +437,7 @@ def paralleReadProcess(sendPipe,rank,password, startFileLine,endFileLine,unique_
     sendPipe.close()
     # print("MPI Process end {:2d} {}~{}".format(rank,startFileLine,endFileLine))
 
-def readPartFile(password, unique_revBiblock,frequencyRevBiBlock,OSACAmaxCyclesRevBiBlock,OSACACPCyclesRevBiBlock,OSACALCDCyclesRevBiBlock,BhiveCyclesRevBiBlock,accuracyMax,accuracyCP,llvmmcaCyclesRevBiBlock,accuracyLLVM):
+def readPartFile(taskName,password, unique_revBiblock,frequencyRevBiBlock,OSACAmaxCyclesRevBiBlock,OSACACPCyclesRevBiBlock,OSACALCDCyclesRevBiBlock,BhiveCyclesRevBiBlock,accuracyMax,accuracyCP,llvmmcaCyclesRevBiBlock,accuracyLLVM):
     global num_file,ProcessNum
     fread=open(filename, 'r')
     num_file = sum([1 for i in open(filename, "r")])
@@ -465,7 +466,7 @@ def readPartFile(password, unique_revBiblock,frequencyRevBiBlock,OSACAmaxCyclesR
         p = Process(target=paralleReadProcess, args=(sendPipe[i],i,password, startFileLine,endFileLine,unique_revBiblock_Queue,frequencyRevBiBlock_Queue,OSACAmaxCyclesRevBiBlock_Queue,OSACACPCyclesRevBiBlock_Queue,OSACALCDCyclesRevBiBlock_Queue,BhiveCyclesRevBiBlock_Queue,accuracyMax_Queue,accuracyCP_Queue,llvmmcaCyclesRevBiBlock_Queue,accuracyLLVM_Queue))
         p.start()
 
-    multBar("task1",ProcessNum,total,sendPipe,receivePipe)
+    multBar(taskName,ProcessNum,total,sendPipe,receivePipe)
     
     while unique_revBiblock_Queue.qsize()<ProcessNum:
         print("QueueNum : {}".format(unique_revBiblock_Queue.qsize()))
@@ -551,9 +552,9 @@ def saveAllResult(taskfilenameprefix,unique_revBiblock,frequencyRevBiBlock,OSACA
     fwriteblockfreq.writelines("avg osaca Max error rate is "+str(totalaccuracyMax/validNum)+"\n")
     fwriteblockfreq.writelines("avg osaca CP error rate is "+str(totalaccuracyCP/validNum)+"\n")
     fwriteblockfreq.writelines("avg osaca avg error rate is "+str(totalOSACAavg/validNum)+"\n")
-    print("avg LLVM error rate is "+str(totalAccuracyLLVM/validNum)+"\n") 
-    print("avg OSACA Max error rate is "+str(totalaccuracyMax/validNum)+"\n") 
-    print("avg OSACA CP error rate is "+str(totalaccuracyCP/validNum)+"\n") 
+    print("avg LLVM error rate is "+str(totalAccuracyLLVM/validNum)) 
+    # print("avg OSACA Max error rate is "+str(totalaccuracyMax/validNum)+"\n") 
+    # print("avg OSACA CP error rate is "+str(totalaccuracyCP/validNum)+"\n") 
     print("avg osaca avg error rate is "+str(totalOSACAavg/validNum)+"\n") 
     fwriteblockfreq.close()
     wrongResultFile.close()
@@ -702,7 +703,7 @@ if __name__ == "__main__":
         accuracyMax = defaultdict(float)
         accuracyCP = defaultdict(float)
 
-        unique_revBiblock=readPartFile(password, unique_revBiblock,frequencyRevBiBlock,OSACAmaxCyclesRevBiBlock,OSACACPCyclesRevBiBlock,OSACALCDCyclesRevBiBlock,BhiveCyclesRevBiBlock,accuracyMax,accuracyCP,llvmmcaCyclesRevBiBlock,accuracyLLVM)
+        unique_revBiblock=readPartFile(taskName,password, unique_revBiblock,frequencyRevBiBlock,OSACAmaxCyclesRevBiBlock,OSACACPCyclesRevBiBlock,OSACALCDCyclesRevBiBlock,BhiveCyclesRevBiBlock,accuracyMax,accuracyCP,llvmmcaCyclesRevBiBlock,accuracyLLVM)
         print("blockSize {} {}".format(len(unique_revBiblock),len(frequencyRevBiBlock)))
         saveAllResult(taskfilenameprefix,unique_revBiblock,frequencyRevBiBlock,OSACAmaxCyclesRevBiBlock,OSACACPCyclesRevBiBlock,BhiveCyclesRevBiBlock,accuracyMax,accuracyCP,llvmmcaCyclesRevBiBlock,accuracyLLVM)
         [llvmerror,osacaerror] = add2Excel(wb,taskName,isFirstSheet,unique_revBiblock,frequencyRevBiBlock,OSACAmaxCyclesRevBiBlock,OSACACPCyclesRevBiBlock,OSACALCDCyclesRevBiBlock,BhiveCyclesRevBiBlock,accuracyMax,accuracyCP,llvmmcaCyclesRevBiBlock,accuracyLLVM)
