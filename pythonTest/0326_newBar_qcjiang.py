@@ -46,10 +46,10 @@ OSACAPath="/home/qcjiang/softwares/anaconda3/bin/osaca"
 LLVM_mcaPath="/home/qcjiang/codes/llvm-project/build/bin/llvm-mca"
 BHivePath="/home/qcjiang/codes/KunpengWorkload/micro_benchmarks/bhive-reg/main"
 #          /home/qcjiang/codes/KunpengWorkload/micro_benchmarks/bhive-reg/main
-saveInfo="0222newOSACAagain"
+saveInfo="0326newOSACAagain"
 BHiveCount=500
-excelOutPath = taskfilePath+'/Summary_BHiveCount'+str(BHiveCount)+'.xlsx'
-ProcessNum=15
+excelOutPath = taskfilePath+'/Summary_BHiveCount'+str(BHiveCount)+'_tsj.xlsx'
+ProcessNum=30
 
 
 def is_positive(value):
@@ -181,12 +181,16 @@ def multBarCore(stdscr,Msg,ProcessNum,total,sendPipe,receivePipe):
                     try:
                         msg=receiveID.recv()
                     except Exception  as e:
+                        raise TypeError("e={} ProcessID={} barTotalNum[ProcessID]={} currentTmp[ProcessID]={}".format(e,ProcessID,barTotalNum[ProcessID],currentTmp[ProcessID]))
                         print("{} {} {}".format(e,ProcessID,barTotalNum[ProcessID]))
                         msg=0
-                    currentTmp[ProcessID]=msg
-                    display_info(barString(ProcessID,msg),0,ProcessID+1,1)
-                    if(msg>=barTotalNum[ProcessID]):
-                        deleteReceivePipeID.append(ProcessID)
+                    if isinstance(msg,int):
+                        currentTmp[ProcessID]=msg
+                        display_info(barString(ProcessID,msg),0,ProcessID+1,1)
+                        if(msg>=barTotalNum[ProcessID]):
+                            deleteReceivePipeID.append(ProcessID)
+                    else:
+                        raise TypeError("ProcessID={} sub process msg={}\nbarTotalNum[ProcessID]={} currentTmp[ProcessID]={}".format(ProcessID,msg,barTotalNum[ProcessID],currentTmp[ProcessID]))
                 else:
                     display_info(barString(ProcessID,0),0,ProcessID+1,1)
                 remainReceive=1
@@ -441,28 +445,32 @@ def paralleReadProcess(sendPipe,rank,password, startFileLine,endFileLine,unique_
     accuracyCP = defaultdict(float)
     # for line in tqdm(fread.readlines()[startFileLine:endFileLine],total=endFileLine-startFileLine,desc=str("{:2d}".format(rank))):
     i=1
-    for line in fread.readlines()[startFileLine:endFileLine]:
-        if i%5==0:
-            sendPipe.send(i)
-        i+=1
-        # print("rank{}".format(rank))
-        block=re.search('^(.*),',line).group(1)
-        num=re.search(',(.*)$',line).group(1)
-        unique_revBiblock.add(block)
-        frequencyRevBiBlock[block] += int(num)
-        # print("     rank{}:block{}".format(rank,block))
-        BhiveCyclesRevBiBlock[block] = BHive(password,BHiveInputDel0xSpace(block),BHiveInputDel0xSpace(block),0)
-        # print("         rank{}:block{}______{}".format(rank,block,BhiveCyclesRevBiBlock[block]))
-        llvmmcaCyclesRevBiBlock[block] = LLVM_mca(password,capstone(capstoneInput(block)))
-        OSACAInput=saveOSACAInput2File(capstoneList(capstoneInput(block)),rank)
-        OSACAmaxCyclesRevBiBlock[block] = OSACA(password,OSACAInput,"max")
-        OSACACPCyclesRevBiBlock[block] = OSACA(password,OSACAInput,"CP")
-        OSACALCDCyclesRevBiBlock[block] = OSACA(password,OSACAInput,"LCD")
-        # print("             rank{}:block{}______{}".format(rank,block,OSACAmaxCyclesRevBiBlock[block]))
-        accuracyLLVM[block]= calculateAccuracyLLVM(BhiveCyclesRevBiBlock[block],llvmmcaCyclesRevBiBlock[block])
-        accuracyMax[block]= calculateAccuracyOSACA(BhiveCyclesRevBiBlock[block],OSACAmaxCyclesRevBiBlock[block],rank)
-        accuracyCP[block]= calculateAccuracyOSACA(BhiveCyclesRevBiBlock[block],OSACACPCyclesRevBiBlock[block],rank)
-        # print("0rank{}".format(rank))
+    try:
+        for line in fread.readlines()[startFileLine:endFileLine]:
+            if i%5==0:
+                sendPipe.send(i)
+            i+=1
+            # print("rank{}".format(rank))
+            block=re.search('^(.*),',line).group(1)
+            num=re.search(',(.*)$',line).group(1)
+            unique_revBiblock.add(block)
+            frequencyRevBiBlock[block] += int(num)
+            # print("     rank{}:block{}".format(rank,block))
+            BhiveCyclesRevBiBlock[block] = BHive(password,BHiveInputDel0xSpace(block),BHiveInputDel0xSpace(block),0)
+            # print("         rank{}:block{}______{}".format(rank,block,BhiveCyclesRevBiBlock[block]))
+            llvmmcaCyclesRevBiBlock[block] = LLVM_mca(password,capstone(capstoneInput(block)))
+            OSACAInput=saveOSACAInput2File(capstoneList(capstoneInput(block)),rank)
+            OSACAmaxCyclesRevBiBlock[block] = OSACA(password,OSACAInput,"max")
+            OSACACPCyclesRevBiBlock[block] = OSACA(password,OSACAInput,"CP")
+            OSACALCDCyclesRevBiBlock[block] = OSACA(password,OSACAInput,"LCD")
+            # print("             rank{}:block{}______{}".format(rank,block,OSACAmaxCyclesRevBiBlock[block]))
+            accuracyLLVM[block]= calculateAccuracyLLVM(BhiveCyclesRevBiBlock[block],llvmmcaCyclesRevBiBlock[block])
+            accuracyMax[block]= calculateAccuracyOSACA(BhiveCyclesRevBiBlock[block],OSACAmaxCyclesRevBiBlock[block],rank)
+            accuracyCP[block]= calculateAccuracyOSACA(BhiveCyclesRevBiBlock[block],OSACACPCyclesRevBiBlock[block],rank)
+            # print("0rank{}".format(rank))
+    except Exception as e:
+        sendPipe.send(e)
+        raise TypeError("e={}".format(e))
     fread.close() 
     # print("1rank{}".format(rank))
     unique_revBiblock_Queue.put(unique_revBiblock)
