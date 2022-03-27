@@ -1,4 +1,4 @@
-
+from __future__ import print_function
 from collections import defaultdict
 import re
 import os
@@ -8,16 +8,18 @@ from tqdm import *
 import  time
 import sys
 from capstone import *
-from multiprocessing import Process, Queue
 import pathlib
 import datetime
 from openpyxl import Workbook
 from openpyxl.chart import BarChart, PieChart, LineChart, Reference
 import pprint
 from tsjPython.tsjCommonFunc import *
-from multiprocessing import Process, Pipe
+import multiprocessing as mp
+import traceback
+from multiprocessing import Queue, Pipe
 import curses
 from curses import wrapper
+import subprocess
 
 barTotalNum=dict()
 barCurrentNum=dict()
@@ -49,7 +51,61 @@ BHivePath="/home/qcjiang/codes/KunpengWorkload/micro_benchmarks/bhive-reg/main"
 saveInfo="0326newOSACAagain"
 BHiveCount=500
 excelOutPath = taskfilePath+'/Summary_BHiveCount'+str(BHiveCount)+'_tsj.xlsx'
-ProcessNum=30
+ProcessNum=20
+# sencond
+timeout=60
+
+class Process(mp.Process):
+    def __init__(self, *args, **kwargs):
+        mp.Process.__init__(self, *args, **kwargs)
+        self._pconn, self._cconn = mp.Pipe()
+        self._exception = None
+
+    def run(self):
+        try:
+            mp.Process.run(self)
+            self._cconn.send(None)
+        except Exception as e:
+            tb = traceback.format_exc()
+            self._cconn.send((e, tb))
+            # raise e  # You can still rise this exception if you need to
+
+    @property
+    def exception(self):
+        if self._pconn.poll():
+            self._exception = self._pconn.recv()
+        return self._exception
+
+def TIMEOUT_COMMAND(command, timeout=10):
+    """call shell-command and either return its output or kill it
+    if it doesn't normally exit within timeout seconds and return None"""
+    import subprocess, datetime, os, time, signal
+    cmd = command.split(" ")
+    start = datetime.datetime.now()
+    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,encoding="utf-8")
+    while process.poll() is None:
+        time.sleep(0.2)
+        now = datetime.datetime.now()
+        if (now - start).seconds> timeout:
+            os.kill(process.pid, signal.SIGKILL)
+            os.waitpid(-1, os.WNOHANG)
+            return None
+    return process.stdout.readlines()
+
+def TIMEOUT_severalCOMMAND(command, timeout=10):
+    """call shell-command and either return its output or kill it
+    if it doesn't normally exit within timeout seconds and return None"""
+    import subprocess, datetime, os, time, signal
+    start = datetime.datetime.now()
+    process = subprocess.Popen(command,shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,encoding="utf-8")
+    while process.poll() is None:
+        time.sleep(0.2)
+        now = datetime.datetime.now()
+        if (now - start).seconds> timeout:
+            os.kill(process.pid, signal.SIGKILL)
+            os.waitpid(-1, os.WNOHANG)
+            return None
+    return process.stdout.readlines()
 
 
 def is_positive(value):
@@ -153,7 +209,7 @@ def clearBarInfo():
     barBeforeTime.clear()
     barName.clear()
 
-def multBarCore(stdscr,Msg,ProcessNum,total,sendPipe,receivePipe):
+def multBarCore(stdscr,Msg,ProcessNum,total,sendPipe,receivePipe,pList):
     set_win()
     # set total num
     totalNum=0
@@ -171,8 +227,19 @@ def multBarCore(stdscr,Msg,ProcessNum,total,sendPipe,receivePipe):
     whileTimes=0
     currentTmp=dict()
     while remainReceive:
+        for p in pList:
+            if p.exception:
+                error, traceback = p.exception
+                clearBarInfo()
+                unset_win()
+                print("p.exception:")
+                print(traceback)
+                raise TypeError(traceback)
+        childProcessNum=len(mp.active_children())
+        if childProcessNum==0:
+            break
         whileTimes+=1
-        display_info(Msg+" check time: "+str(whileTimes),0,0,2)
+        display_info("childProcessNum/remainBarNum: "+str(childProcessNum)+"/"+str(len(receivePipe))+" "+Msg+" check time: "+str(whileTimes),0,0,2)
         remainReceive=0
         deleteReceivePipeID=[] 
         for ProcessID , receiveID in receivePipe.items():
@@ -181,15 +248,21 @@ def multBarCore(stdscr,Msg,ProcessNum,total,sendPipe,receivePipe):
                     try:
                         msg=receiveID.recv()
                     except Exception  as e:
+                        clearBarInfo()
+                        unset_win()
                         raise TypeError("e={} ProcessID={} barTotalNum[ProcessID]={} currentTmp[ProcessID]={}".format(e,ProcessID,barTotalNum[ProcessID],currentTmp[ProcessID]))
                         print("{} {} {}".format(e,ProcessID,barTotalNum[ProcessID]))
                         msg=0
                     if isinstance(msg,int):
-                        currentTmp[ProcessID]=msg
                         display_info(barString(ProcessID,msg),0,ProcessID+1,1)
                         if(msg>=barTotalNum[ProcessID]):
                             deleteReceivePipeID.append(ProcessID)
+                            currentTmp[ProcessID]=barTotalNum[ProcessID]
+                        else:
+                            currentTmp[ProcessID]=msg
                     else:
+                        clearBarInfo()
+                        unset_win()
                         raise TypeError("ProcessID={} sub process msg={}\nbarTotalNum[ProcessID]={} currentTmp[ProcessID]={}".format(ProcessID,msg,barTotalNum[ProcessID],currentTmp[ProcessID]))
                 else:
                     display_info(barString(ProcessID,0),0,ProcessID+1,1)
@@ -207,17 +280,19 @@ def multBarCore(stdscr,Msg,ProcessNum,total,sendPipe,receivePipe):
     clearBarInfo()
     unset_win()
 
-def multBar(Msg,ProcessNum,total,sendPipe,receivePipe):
+def multBar(Msg,ProcessNum,total,sendPipe,receivePipe,pList):
     processBeginTime=time.time()
     yellowPrint("\r{} : start multiple Processes at: {}".format(Msg,time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())))
-    wrapper(multBarCore,Msg,ProcessNum,total,sendPipe,receivePipe)  
+    wrapper(multBarCore,Msg,ProcessNum,total,sendPipe,receivePipe,pList)  
     passPrint("{} : wait multiple Processes to finish: {}".format(Msg,time2String(int(time.time()-processBeginTime))))
 
 
 def OSACA(password,inputFile,maxOrCP):
-    val=os.popen('echo '+password+' | python '+OSACAPath+' --arch TSV110 '+str(inputFile))#  -timeline -show-encoding -all-stats -all-views
-    list = val.readlines()
-    if list:
+    # command='echo '+password+' | python '+OSACAPath+' --arch TSV110 '+str(inputFile)
+    command='python '+OSACAPath+' --arch TSV110 '+str(inputFile)
+    # print(command)
+    list=TIMEOUT_COMMAND(command)
+    if list and len(list)>1:
         lineNum=1
         while lineNum:
             listObj=list[lineNum]
@@ -281,8 +356,9 @@ def capstoneInput(block):
 
 def LLVM_mca(password,input):
     sys.stdout.flush()
-    val=os.popen('echo "'+input+'" | '+LLVM_mcaPath+' -iterations='+str(BHiveCount))#  -timeline -show-encoding -all-stats -all-views
-    list = val.readlines()
+    command='echo "'+input+'" | '+LLVM_mcaPath+' -iterations='+str(BHiveCount)
+    # print(command)
+    list=TIMEOUT_severalCOMMAND(command)
     #Total Cycles:      10005
     # print(list[2])
     regexResult=re.search("Total Cycles:      ([0-9]*)",list[2])
@@ -321,12 +397,15 @@ def checkBHiveResultStable(password,input,showinput,trytime):
     elif trytime>5:
         return -1
     sys.stdout.flush()
-    val=os.popen('echo '+password+' | sudo -S '+BHivePath+' '+input)
-    list = val.readlines()
+    command=BHivePath+' '+input
+    list=TIMEOUT_COMMAND(command)
+    
     if list is None or len(list)==0:
         regexResult=None
     else:
         regexResult=re.search("Event num: ([0-9]*)",list[-1])
+        # if not regexResult:
+        #     regexResult=re.search("Event num: ([0-9]*)",list[-2])
     if regexResult:
         resultCycle=regexResult.group(1)
         return resultCycle
@@ -347,21 +426,15 @@ def BHive(password,input,showinput,trytime):
     # print("before main {}/{} {}".format(order,num_file,showinput))
     sys.stdout.flush()
     # begin_time=time.time()
-    val=os.popen('echo '+password+' | sudo -S '+BHivePath+' '+input)
-    # call_main_time=time.time()-begin_time
-    # print("after  main {}/{} {}s".format(order,num_file,call_main_time))
-    # sys.stdout.flush()
-    list = val.readlines()
-    # real_main_time=time.time()-begin_time
-    # print("real  main {}/{} {}s".format(order,num_file,real_main_time))
-    # if real_main_time>20:
-    #     print("Attention!")
-    # sys.stdout.flush()
-    # print(list[-1])
+    command=BHivePath+' '+input
+    list=TIMEOUT_COMMAND(command)
+
     if list is None or len(list)==0:
         regexResult=None
     else:
         regexResult=re.search("Event num: ([0-9]*)",list[-1])
+        # if not regexResult:
+        #     regexResult=re.search("Event num: ([0-9]*)",list[-2])
     if regexResult:
         resultCycle=regexResult.group(1)
         # print(resultCycle)
@@ -412,23 +485,28 @@ def BHiveInputDel0x(block):
 
 def calculateAccuracyOSACA(accurateCycles,predictionCycles,rank):
     # print(" rank{}-tsj".format(rank))
-    if int(accurateCycles) == -1 or float(predictionCycles) == -1 or int(accurateCycles) == 0:
+    accurateCycles=float(accurateCycles)
+    predictionCycles=float(predictionCycles)
+    if accurateCycles <= 0 or predictionCycles <= 0:
         # print(" rank{}-0".format(rank))
         return 0
     else:
         # print(" rank{}-tsj2".format(rank))
         # print("{} {}".format(accurateCycles,predictionCycles))
-        gap=abs(BHiveCount*float(predictionCycles)-int(accurateCycles))
+        gap=abs(BHiveCount*predictionCycles-accurateCycles)
         # print(" rank{}-{}".format(rank,int(gap)/int(accurateCycles)))
-        return int(gap)/int(accurateCycles) # accuracy variable is error
+        return gap/accurateCycles # accuracy variable is error
 
 def calculateAccuracyLLVM(accurateCycles,predictionCycles):
-    if int(accurateCycles) == -1 or int(predictionCycles) == -1 or int(accurateCycles) == 0:
+    accurateCycles=float(accurateCycles)
+    predictionCycles=float(predictionCycles)
+    if accurateCycles <= 0 or predictionCycles <= 0:
+        # print(" rank{}-0".format(rank))
         return 0
     else:
         # print("{} {}".format(accurateCycles,predictionCycles))
-        gap=abs(int(predictionCycles)-int(accurateCycles))
-        return int(gap)/int(accurateCycles) # accuracy variable is error
+        gap=abs(predictionCycles-accurateCycles)
+        return gap/accurateCycles # accuracy variable is error
 
 def paralleReadProcess(sendPipe,rank,password, startFileLine,endFileLine,unique_revBiblock_Queue,frequencyRevBiBlock_Queue,OSACAmaxCyclesRevBiBlock_Queue,OSACACPCyclesRevBiBlock_Queue,OSACALCDCyclesRevBiBlock_Queue,BhiveCyclesRevBiBlock_Queue,accuracyMax_Queue,accuracyCP_Queue,llvmmcaCyclesRevBiBlock_Queue,accuracyLLVM_Queue):
     # print("MPI Process Start {:2d} {}~{}".format(rank,startFileLine,endFileLine))
@@ -470,7 +548,8 @@ def paralleReadProcess(sendPipe,rank,password, startFileLine,endFileLine,unique_
             # print("0rank{}".format(rank))
     except Exception as e:
         sendPipe.send(e)
-        raise TypeError("e={}".format(e))
+        errorPrint("e={}".format(e))
+        raise TypeError("paralleReadProcess = {}".format(e))
     fread.close() 
     # print("1rank{}".format(rank))
     unique_revBiblock_Queue.put(unique_revBiblock)
@@ -510,20 +589,27 @@ def readPartFile(taskName,password, unique_revBiblock,frequencyRevBiBlock,OSACAm
     receivePipe=dict()
     total=dict()
 
+    pList=[]
     for i in range(ProcessNum):
         startFileLine=int(i*num_file/ProcessNum)
         endFileLine=int((i+1)*num_file/ProcessNum)
         receivePipe[i], sendPipe[i] = Pipe(False)
         total[i]=endFileLine-startFileLine
-        p = Process(target=paralleReadProcess, args=(sendPipe[i],i,password, startFileLine,endFileLine,unique_revBiblock_Queue,frequencyRevBiBlock_Queue,OSACAmaxCyclesRevBiBlock_Queue,OSACACPCyclesRevBiBlock_Queue,OSACALCDCyclesRevBiBlock_Queue,BhiveCyclesRevBiBlock_Queue,accuracyMax_Queue,accuracyCP_Queue,llvmmcaCyclesRevBiBlock_Queue,accuracyLLVM_Queue))
-        p.start()
+        pList.append(Process(target=paralleReadProcess, args=(sendPipe[i],i,password, startFileLine,endFileLine,unique_revBiblock_Queue,frequencyRevBiBlock_Queue,OSACAmaxCyclesRevBiBlock_Queue,OSACACPCyclesRevBiBlock_Queue,OSACALCDCyclesRevBiBlock_Queue,BhiveCyclesRevBiBlock_Queue,accuracyMax_Queue,accuracyCP_Queue,llvmmcaCyclesRevBiBlock_Queue,accuracyLLVM_Queue)))
 
-    multBar(taskName,ProcessNum,total,sendPipe,receivePipe)
+    for p in pList:
+        p.start()
+    
+    # https://stackoverflow.com/questions/19924104/python-multiprocessing-handling-child-errors-in-parent
+    multBar(taskName,ProcessNum,total,sendPipe,receivePipe,pList)
     
     while unique_revBiblock_Queue.qsize()<ProcessNum:
         print("QueueNum : {}".format(unique_revBiblock_Queue.qsize()))
         sys.stdout.flush()
         time.sleep(5)
+    for p in pList:
+        p.join() # 避免僵尸进程
+        
     # for i in tqdm(range(ProcessNum)):
     for i in range(ProcessNum):
         # print("MPISum rank : {}, blockNum : {},leftQueueNum : {}".format(i,len(unique_revBiblock),unique_revBiblock_Queue.qsize()))
