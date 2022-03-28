@@ -30,9 +30,9 @@ stdscr = curses.initscr()
 
 taskfilePath="/home/qcjiang/tests/bb_test/blockFrequency"
 # taskList={\
-    # "tensorflow_test_100":"tensorflow_1",
-            # "tensorflow_test_5":"tensorflow_2",
-            # "tensorflow_test_3":"tensorflow_3",
+#             "tensorflow_test_100":"tensorflow_1",
+#             "tensorflow_test_5":"tensorflow_2",
+#             "tensorflow_test_3":"tensorflow_3"}
 # taskList={           "test_insns_blockFrequency_skip_2":"test_insns"}
 # taskList={ "test_insns_test_5":"test"}
 # taskList={ 
@@ -607,8 +607,8 @@ def readPartFile(taskName,password, unique_revBiblock,frequencyRevBiBlock,OSACAm
         print("QueueNum : {}".format(unique_revBiblock_Queue.qsize()))
         sys.stdout.flush()
         time.sleep(5)
-    for p in pList:
-        p.join() # 避免僵尸进程
+    # for p in pList:
+    #     p.join() # 避免僵尸进程
         
     # for i in tqdm(range(ProcessNum)):
     for i in range(ProcessNum):
