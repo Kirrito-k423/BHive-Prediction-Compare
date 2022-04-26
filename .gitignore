@@ -54,3 +54,5 @@ main
 # *.log
 
 bhive
+Pyenv/*
+*.pyc
