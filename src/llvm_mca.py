@@ -1,10 +1,15 @@
-def LLVM_mca(password,input):
+from capstone import *
+import sys
+import re
+import global_variable as glv
+from terminal_command import TIMEOUT_severalCOMMAND
+
+def LLVM_mca(input):
     sys.stdout.flush()
-    command='echo "'+input+'" | '+LLVM_mcaPath+' -iterations='+str(BHiveCount)
-    # print(command)
+    command='echo "'+input+'" | '+glv._get("LLVM_mcaPath")+' -iterations='+str(glv._get("BHiveCount"))
+    ic(command)
     list=TIMEOUT_severalCOMMAND(command)
-    #Total Cycles:      10005
-    # print(list[2])
+    ic(list)
     regexResult=re.search("Total Cycles:      ([0-9]*)",list[2])
     if regexResult:
         resultCycle=regexResult.group(1)

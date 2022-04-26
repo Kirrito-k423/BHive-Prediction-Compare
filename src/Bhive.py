@@ -1,3 +1,8 @@
+from terminal_command import TIMEOUT_COMMAND
+import sys
+import global_variable as glv
+import re
+
 def checkBHiveResultStable(password,input,showinput,trytime):
     global BHiveCount
     order=0 
@@ -21,7 +26,7 @@ def checkBHiveResultStable(password,input,showinput,trytime):
     else:
         return checkBHiveResultStable(password,input,showinput,trytime+1)
         
-def BHive(password,input,showinput,trytime):
+def BHive(input,showinput,trytime):
     global BHiveCount
     order=0 
     if trytime==0:
@@ -35,8 +40,9 @@ def BHive(password,input,showinput,trytime):
     # print("before main {}/{} {}".format(order,num_file,showinput))
     sys.stdout.flush()
     # begin_time=time.time()
-    command=BHivePath+' '+input
+    command=glv._get("BHivePath")+' '+input
     list=TIMEOUT_COMMAND(command)
+    ic(list)
 
     if list is None or len(list)==0:
         regexResult=None
@@ -57,7 +63,7 @@ def BHive(password,input,showinput,trytime):
         # print("trytime: {} {}".format(trytime ,list[-1]))
         # print("else {}/{} {}".format(order,num_file,input))
         # print("else {}/{} {}".format(order,num_file,showinput))
-        return BHive(password,input,showinput,trytime+1)
+        return BHive(input,showinput,trytime+1)
 
 def BHiveInput(block):
     # print(block)

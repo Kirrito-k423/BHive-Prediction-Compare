@@ -1,4 +1,5 @@
-
+from collections import defaultdict
+from multiprocessing import Queue
 
 class dataDictClass():
     def __init__(self):
@@ -20,18 +21,26 @@ class dataDictClass():
         except KeyError:
             return "Not Found"
 
-def dataDictInit()
+def dataDictInit():
     dataDict = dataDictClass()
 
     dataDict.set("unique_revBiblock",set())
     dataDict.set("frequencyRevBiBlock" , defaultdict(int))
     dataDict.set("llvmmcaCyclesRevBiBlock" , defaultdict(int))
-    dataDict.set("OSACAmaxCyclesRevBiBlock" , defaultdict(int))
-    dataDict.set("OSACACPCyclesRevBiBlock" , defaultdict(int))
-    dataDict.set("OSACALCDCyclesRevBiBlock" , defaultdict(int))
+    # dataDict.set("OSACAmaxCyclesRevBiBlock" , defaultdict(int))
+    # dataDict.set("OSACACPCyclesRevBiBlock" , defaultdict(int))
+    # dataDict.set("OSACALCDCyclesRevBiBlock" , defaultdict(int))
     dataDict.set("BhiveCyclesRevBiBlock" , defaultdict(int))
     dataDict.set("accuracyLLVM" , defaultdict(float))
-    dataDict.set("accuracyMax" , defaultdict(float))
-    dataDict.set("accuracyCP" , defaultdict(float))
-
+    dataDict.set("accuracyLLVM_MuliplyFrequency" , defaultdict(float))
+    # dataDict.set("accuracyMax" , defaultdict(float))
+    # dataDict.set("accuracyCP" , defaultdict(float))
     return dataDict
+
+def queueDictInit(dataDict):
+    queueDict = dataDictClass()
+
+    for key in dataDict.dataDict:
+        ic(key)
+        queueDict.set(key, Queue())
+    return queueDict

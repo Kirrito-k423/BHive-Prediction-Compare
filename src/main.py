@@ -1,11 +1,13 @@
 
 
 import config  # 加载配置
+from config import pasteFullFileName
 import global_variable as glv
 from input_process import inputParameters, isIceEnable
 from terminal_command import checkFile
 from excel import excelGraphInit
-
+from data import dataDictInit
+from multiProcess import *
 
 def main():
     ## icecream & input
@@ -17,10 +19,12 @@ def main():
     isFirstSheet=1
     taskList = glv._get("taskList")
     for taskKey, taskName in taskList.items():
+        # glv._set("filename",pasteFullFileName(taskKey))
         filename=pasteFullFileName(taskKey)
+        ic(filename)
         dataDict = dataDictInit()
 
-        unique_revBiblock=readPartFile(taskName, dataDict)
+        unique_revBiblock=readPartFile(taskName,filename, dataDict)
         print("blockSize {} {}".format(len(dataDict.get("unique_revBiblock")),len(dataDict.get("frequencyRevBiBlock"))))
         [llvmerror,osacaerror] = add2Excel(wb,taskName,isFirstSheet.dataDict)
         excelGraphAdd(wb,taskName,llvmerror,osacaerror)

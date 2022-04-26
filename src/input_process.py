@@ -1,5 +1,6 @@
 from icecream import ic
 from icecream import install
+import global_variable as glv
 from tsjPython.tsjCommonFunc import *
 import argparse
 
@@ -35,7 +36,7 @@ def inputParameters():
         dest="debug",
         type=str,
         choices=["yes", "no"],
-        default="no",
+        default="yes",
     )
     args = parser.parse_args()
     glv._set("BHiveCount",args.BHiveCount)

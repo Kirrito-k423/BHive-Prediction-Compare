@@ -1,3 +1,12 @@
+import global_variable as glv
+import multiprocessing as mp
+from data import queueDictInit
+from multiprocessing import Pipe
+from multiBar import *
+from collections import defaultdict
+from Bhive import *
+from llvm_mca import *
+from OSACA import *
 
 class Process(mp.Process):
     def __init__(self, *args, **kwargs):
@@ -19,20 +28,25 @@ class Process(mp.Process):
         if self._pconn.poll():
             self._exception = self._pconn.recv()
         return self._exception
-        
-def paralleReadProcess(sendPipe,rank,password, startFileLine,endFileLine,unique_revBiblock_Queue,frequencyRevBiBlock_Queue,OSACAmaxCyclesRevBiBlock_Queue,OSACACPCyclesRevBiBlock_Queue,OSACALCDCyclesRevBiBlock_Queue,BhiveCyclesRevBiBlock_Queue,accuracyMax_Queue,accuracyCP_Queue,llvmmcaCyclesRevBiBlock_Queue,accuracyLLVM_Queue):
+
+def paralleReadProcess(filename,sendPipe,rank, startFileLine,endFileLine, queueDict):
+    # unique_revBiblock_Queue,frequencyRevBiBlock_Queue,OSACAmaxCyclesRevBiBlock_Queue,OSACACPCyclesRevBiBlock_Queue,OSACALCDCyclesRevBiBlock_Queue,BhiveCyclesRevBiBlock_Queue,accuracyMax_Queue,accuracyCP_Queue,llvmmcaCyclesRevBiBlock_Queue,accuracyLLVM_Queue):
     # print("MPI Process Start {:2d} {}~{}".format(rank,startFileLine,endFileLine))
     fread=open(filename, 'r')
+
+    # subDataDict=dataDictInit()
+    
     unique_revBiblock=set()
     frequencyRevBiBlock = defaultdict(int)
     llvmmcaCyclesRevBiBlock = defaultdict(int)
-    OSACAmaxCyclesRevBiBlock = defaultdict(int)
-    OSACACPCyclesRevBiBlock = defaultdict(int)
-    OSACALCDCyclesRevBiBlock =  defaultdict(int)
+    # OSACAmaxCyclesRevBiBlock = defaultdict(int)
+    # OSACACPCyclesRevBiBlock = defaultdict(int)
+    # OSACALCDCyclesRevBiBlock =  defaultdict(int)
     BhiveCyclesRevBiBlock = defaultdict(int)
     accuracyLLVM = defaultdict(float)
-    accuracyMax = defaultdict(float)
-    accuracyCP = defaultdict(float)
+    accuracyLLVM_MuliplyFrequency = defaultdict(float)
+    # accuracyMax = defaultdict(float)
+    # accuracyCP = defaultdict(float)
     # for line in tqdm(fread.readlines()[startFileLine:endFileLine],total=endFileLine-startFileLine,desc=str("{:2d}".format(rank))):
     i=1
     try:
@@ -44,23 +58,24 @@ def paralleReadProcess(sendPipe,rank,password, startFileLine,endFileLine,unique_
             block=re.search('^(.*),',line).group(1)
             num=re.search(',(.*)$',line).group(1)
             unique_revBiblock.add(block)
-            frequencyRevBiBlock[block] += int(num)
+            frequencyRevBiBlock[block] = int(num)
             # print("     rank{}:block{}".format(rank,block))
-            BhiveCyclesRevBiBlock[block] = BHive(password,BHiveInputDel0xSpace(block),BHiveInputDel0xSpace(block),0)
+            BhiveCyclesRevBiBlock[block] = BHive(BHiveInputDel0xSpace(block),BHiveInputDel0xSpace(block),0)
             # print("         rank{}:block{}______{}".format(rank,block,BhiveCyclesRevBiBlock[block]))
-            llvmmcaCyclesRevBiBlock[block] = LLVM_mca(password,capstone(capstoneInput(block)))
-            OSACAInput=saveOSACAInput2File(capstoneList(capstoneInput(block)),rank)
-            OSACAmaxCyclesRevBiBlock[block] = OSACA(password,OSACAInput,"max")
-            OSACACPCyclesRevBiBlock[block] = OSACA(password,OSACAInput,"CP")
-            OSACALCDCyclesRevBiBlock[block] = OSACA(password,OSACAInput,"LCD")
+            llvmmcaCyclesRevBiBlock[block] = LLVM_mca(capstone(capstoneInput(block)))
+            # OSACAInput=saveOSACAInput2File(capstoneList(capstoneInput(block)),rank)
+            # OSACAmaxCyclesRevBiBlock[block] = OSACA(password,OSACAInput,"max")
+            # OSACACPCyclesRevBiBlock[block] = OSACA(password,OSACAInput,"CP")
+            # OSACALCDCyclesRevBiBlock[block] = OSACA(password,OSACAInput,"LCD")
             # print("             rank{}:block{}______{}".format(rank,block,OSACAmaxCyclesRevBiBlock[block]))
             accuracyLLVM[block]= calculateAccuracyLLVM(BhiveCyclesRevBiBlock[block],llvmmcaCyclesRevBiBlock[block])
-            accuracyMax[block]= calculateAccuracyOSACA(BhiveCyclesRevBiBlock[block],OSACAmaxCyclesRevBiBlock[block],rank)
-            accuracyCP[block]= calculateAccuracyOSACA(BhiveCyclesRevBiBlock[block],OSACACPCyclesRevBiBlock[block],rank)
+            accuracyLLVM_MuliplyFrequency[block]=accuracyLLVM[block]* frequencyRevBiBlock[block]
+            # accuracyMax[block]= calculateAccuracyOSACA(BhiveCyclesRevBiBlock[block],OSACAmaxCyclesRevBiBlock[block],rank)
+            # accuracyCP[block]= calculateAccuracyOSACA(BhiveCyclesRevBiBlock[block],OSACACPCyclesRevBiBlock[block],rank)
             # print("0rank{}".format(rank))
     except Exception as e:
         sendPipe.send(e)
-        errorPrint("e={}".format(e))
+        errorPrint("error = {}".format(e))
         raise TypeError("paralleReadProcess = {}".format(e))
     fread.close() 
     # print("1rank{}".format(rank))
@@ -80,22 +95,20 @@ def paralleReadProcess(sendPipe,rank,password, startFileLine,endFileLine,unique_
     sendPipe.close()
     # print("MPI Process end {:2d} {}~{}".format(rank,startFileLine,endFileLine))
 
-def readPartFile(taskName,password, unique_revBiblock,frequencyRevBiBlock,OSACAmaxCyclesRevBiBlock,OSACACPCyclesRevBiBlock,OSACALCDCyclesRevBiBlock,BhiveCyclesRevBiBlock,accuracyMax,accuracyCP,llvmmcaCyclesRevBiBlock,accuracyLLVM):
-    global num_file,ProcessNum
+def fileLineNum(filename):
+    # filename=glv._get("filename")
     fread=open(filename, 'r')
     num_file = sum([1 for i in open(filename, "r")])
+    glv._set("num_file",num_file)
     fread.close() 
+    return num_file
 
-    unique_revBiblock_Queue =Queue()
-    frequencyRevBiBlock_Queue = Queue()
-    llvmmcaCyclesRevBiBlock_Queue=Queue()
-    OSACAmaxCyclesRevBiBlock_Queue=Queue()
-    OSACACPCyclesRevBiBlock_Queue=Queue()
-    OSACALCDCyclesRevBiBlock_Queue=Queue()
-    BhiveCyclesRevBiBlock_Queue=Queue()
-    accuracyLLVM_Queue=Queue()
-    accuracyMax_Queue=Queue()
-    accuracyCP_Queue=Queue()
+def readPartFile(taskName,filename, dataDict):
+    # unique_revBiblock,frequencyRevBiBlock,OSACAmaxCyclesRevBiBlock,OSACACPCyclesRevBiBlock,OSACALCDCyclesRevBiBlock,BhiveCyclesRevBiBlock,accuracyMax,accuracyCP,llvmmcaCyclesRevBiBlock,accuracyLLVM):
+    num_file=fileLineNum(filename)
+    ProcessNum=glv._get("ProcessNum")
+
+    queueDict = queueDictInit(dataDict)
 
     sendPipe=dict()
     receivePipe=dict()
@@ -107,7 +120,7 @@ def readPartFile(taskName,password, unique_revBiblock,frequencyRevBiBlock,OSACAm
         endFileLine=int((i+1)*num_file/ProcessNum)
         receivePipe[i], sendPipe[i] = Pipe(False)
         total[i]=endFileLine-startFileLine
-        pList.append(Process(target=paralleReadProcess, args=(sendPipe[i],i,password, startFileLine,endFileLine,unique_revBiblock_Queue,frequencyRevBiBlock_Queue,OSACAmaxCyclesRevBiBlock_Queue,OSACACPCyclesRevBiBlock_Queue,OSACALCDCyclesRevBiBlock_Queue,BhiveCyclesRevBiBlock_Queue,accuracyMax_Queue,accuracyCP_Queue,llvmmcaCyclesRevBiBlock_Queue,accuracyLLVM_Queue)))
+        pList.append(Process(target=paralleReadProcess, args=(filename,sendPipe[i],i,startFileLine,endFileLine,queueDict)))
 
     for p in pList:
         p.start()
