@@ -5,7 +5,7 @@ from tsjPython.tsjCommonFunc import *
 import argparse
 
 def inputParameters():
-    yellowPrint("You can change all parameters in config.py except enter some parameters\n")
+    yellowPrint("In addition to entering some parameters, you can also modify all parameters in config.py")
     parser = argparse.ArgumentParser()
     parser.description = "please enter some parameters"
     parser.add_argument(
