@@ -4,13 +4,24 @@ import re
 import global_variable as glv
 from terminal_command import TIMEOUT_severalCOMMAND
 
+def tryNtimes(func, time ,args):
+    for i in range(time):
+        returnValue = eval(func)(args)
+        if returnValue!=-1:
+            return returnValue
+    return -1
+
 def LLVM_mca(input):
+    return tryNtimes("LLVM_mcaCore",glv._get("failedRetryTimes"),input)
+
+def LLVM_mcaCore(input):
     sys.stdout.flush()
     command='echo "'+input+'" | '+glv._get("LLVM_mcaPath")+' -iterations='+str(glv._get("BHiveCount"))
     ic(command)
-    list=TIMEOUT_severalCOMMAND(command)
-    ic(list)
-    regexResult=re.search("Total Cycles:      ([0-9]*)",list[2])
+    outputlist=TIMEOUT_severalCOMMAND(command)
+    ic(outputlist)
+    if len(outputlist)>3:
+        regexResult=re.search("Total Cycles:      ([0-9]*)",outputlist[2])
     if regexResult:
         resultCycle=regexResult.group(1)
         return resultCycle

@@ -25,21 +25,19 @@ import re
 #         return resultCycle
 #     else:
 #         return checkBHiveResultStable(password,input,showinput,trytime+1)
-        
+
+def tryNtimes(func, time ,args):
+    for i in range(time):
+        returnValue = eval(func)(args)
+        if returnValue!=-1:
+            return returnValue
+    return -1
+
 def BHive(input,showinput,trytime):
-    global BHiveCount
-    order=0 
-    if trytime==0:
-        order=order+1
-    elif trytime>5:
-        # print("trytime {}/{} {}".format(order,num_file,input))
-        # print("trytime {}/{} {}".format(order,num_file,showinput))
-        # print("trytime > 5")
-        return -1
-    # print("before main {}/{} {}".format(order,num_file,input))
-    # print("before main {}/{} {}".format(order,num_file,showinput))
+    return tryNtimes("BHiveCore",glv._get("failedRetryTimes"),input)
+
+def BHiveCore(input):
     sys.stdout.flush()
-    # begin_time=time.time()
     command=glv._get("BHivePath")+' '+input+" "+str(glv._get("BHiveCount"))
     list=TIMEOUT_COMMAND(command)
     ic(list)
@@ -58,8 +56,7 @@ def BHive(input,showinput,trytime):
         #    return resultCycle
         #else:
         #    return BHive(password,input,showinput,trytime+1)   
-    else:
-        return BHive(input,showinput,trytime+1)
+    return -1
 
 def BHiveInput(block):
     input2word=""

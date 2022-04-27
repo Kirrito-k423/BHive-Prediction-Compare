@@ -18,6 +18,7 @@ def add2Excel(wb,name,isFirstSheet,dataDict):
         ws.column_dimensions[i].width = 15 # 修改列宽
     validNum=0
     unvalidNum=0
+    BhiveSkipNum=0
     totalAccuracyLLVM=0.0
     # totalaccuracyMax=0.0
     # totalaccuracyCP=0.0
@@ -27,7 +28,8 @@ def add2Excel(wb,name,isFirstSheet,dataDict):
         globals()[key]=value 
 
     for tmp_block_binary_reverse in unique_revBiblock:
-        if BhiveCyclesRevBiBlock[tmp_block_binary_reverse]==0:
+        if BhiveCyclesRevBiBlock[tmp_block_binary_reverse]==-1:
+            BhiveSkipNum+=1
             continue
         lineNum+=1
         tmpARMassembly=capstone(capstoneInput(tmp_block_binary_reverse))
@@ -76,6 +78,7 @@ def add2Excel(wb,name,isFirstSheet,dataDict):
                 # accuracyMax[tmp_block_binary_reverse],
                 # accuracyCP[tmp_block_binary_reverse]]
                 "ops!"])
+    ws.append(["validNum {:d}".format(validNum),"llvmUnvalidNum {:d}".format(unvalidNum),"BhiveSkipNum {:d}".format(BhiveSkipNum)])
     if validNum==0:
         llvmerror=0
     else:
