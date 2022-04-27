@@ -2,8 +2,12 @@ import global_variable as glv
 
 glv._init()
 
-glv._set("taskfilePath", "/home/qcjiang/tests/bb_test/blockFrequency")
-glv._set("taskList",{"test_insns_test_5":"test"})
+glv._set("taskfilePath", "/home/shaojiemike/blockFrequency")
+# glv._set("taskList",{"tensorflow_test_1":"test"})
+glv._set("taskList",{\
+            "tensorflow_test_100":"tensorflow_1",
+            "tensorflow_test_5":"tensorflow_2",
+            "tensorflow_test_3":"tensorflow_3"})
 # glv._set("taskList", 
 #                 {        
 #                 "tensorflow_41Gdir_00all_skip_2":"Tensorflow",

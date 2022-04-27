@@ -2,6 +2,13 @@ import  time
 from tsjPython.tsjCommonFunc import *
 import curses
 from curses import wrapper
+import multiprocessing as mp
+barTotalNum=dict()
+barCurrentNum=dict()
+barStartTime=dict()
+barBeforeTime=dict()
+barName=set()
+stdscr = curses.initscr()
 
 def is_positive(value):
     value = int(value)

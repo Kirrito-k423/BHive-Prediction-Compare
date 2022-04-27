@@ -7,6 +7,7 @@ from collections import defaultdict
 from Bhive import *
 from llvm_mca import *
 from OSACA import *
+from collections import defaultdict
 
 class Process(mp.Process):
     def __init__(self, *args, **kwargs):
@@ -54,43 +55,41 @@ def paralleReadProcess(filename,sendPipe,rank, startFileLine,endFileLine, queueD
             if i%5==0:
                 sendPipe.send(i)
             i+=1
-            # print("rank{}".format(rank))
+
             block=re.search('^(.*),',line).group(1)
             num=re.search(',(.*)$',line).group(1)
+
             unique_revBiblock.add(block)
             frequencyRevBiBlock[block] = int(num)
-            # print("     rank{}:block{}".format(rank,block))
             BhiveCyclesRevBiBlock[block] = BHive(BHiveInputDel0xSpace(block),BHiveInputDel0xSpace(block),0)
-            # print("         rank{}:block{}______{}".format(rank,block,BhiveCyclesRevBiBlock[block]))
             llvmmcaCyclesRevBiBlock[block] = LLVM_mca(capstone(capstoneInput(block)))
             # OSACAInput=saveOSACAInput2File(capstoneList(capstoneInput(block)),rank)
             # OSACAmaxCyclesRevBiBlock[block] = OSACA(password,OSACAInput,"max")
             # OSACACPCyclesRevBiBlock[block] = OSACA(password,OSACAInput,"CP")
             # OSACALCDCyclesRevBiBlock[block] = OSACA(password,OSACAInput,"LCD")
-            # print("             rank{}:block{}______{}".format(rank,block,OSACAmaxCyclesRevBiBlock[block]))
             accuracyLLVM[block]= calculateAccuracyLLVM(BhiveCyclesRevBiBlock[block],llvmmcaCyclesRevBiBlock[block])
             accuracyLLVM_MuliplyFrequency[block]=accuracyLLVM[block]* frequencyRevBiBlock[block]
             # accuracyMax[block]= calculateAccuracyOSACA(BhiveCyclesRevBiBlock[block],OSACAmaxCyclesRevBiBlock[block],rank)
             # accuracyCP[block]= calculateAccuracyOSACA(BhiveCyclesRevBiBlock[block],OSACACPCyclesRevBiBlock[block],rank)
-            # print("0rank{}".format(rank))
     except Exception as e:
         sendPipe.send(e)
         errorPrint("error = {}".format(e))
         raise TypeError("paralleReadProcess = {}".format(e))
     fread.close() 
     # print("1rank{}".format(rank))
-    unique_revBiblock_Queue.put(unique_revBiblock)
-    frequencyRevBiBlock_Queue.put(frequencyRevBiBlock)
+    queueDict.get("unique_revBiblock").put(unique_revBiblock)
+    queueDict.get("frequencyRevBiBlock").put(frequencyRevBiBlock)
     # print("2rank{}".format(rank))
-    llvmmcaCyclesRevBiBlock_Queue.put(llvmmcaCyclesRevBiBlock)
-    OSACAmaxCyclesRevBiBlock_Queue.put(OSACAmaxCyclesRevBiBlock)
-    OSACACPCyclesRevBiBlock_Queue.put(OSACACPCyclesRevBiBlock)
-    OSACALCDCyclesRevBiBlock_Queue.put(OSACALCDCyclesRevBiBlock)
-    BhiveCyclesRevBiBlock_Queue.put(BhiveCyclesRevBiBlock)
+    queueDict.get("llvmmcaCyclesRevBiBlock").put(llvmmcaCyclesRevBiBlock)
+    # queueDict.get("OSACAmaxCyclesRevBiBlock").put(OSACAmaxCyclesRevBiBlock)
+    # queueDict.get("OSACACPCyclesRevBiBlock").put(OSACACPCyclesRevBiBlock)
+    # queueDict.get("OSACALCDCyclesRevBiBlock").put(OSACALCDCyclesRevBiBlock)
+    queueDict.get("BhiveCyclesRevBiBlock").put(BhiveCyclesRevBiBlock)
     # print("3rank{}".format(rank))
-    accuracyLLVM_Queue.put(accuracyLLVM)
-    accuracyMax_Queue.put(accuracyMax)
-    accuracyCP_Queue.put(accuracyCP)
+    queueDict.get("accuracyLLVM").put(accuracyLLVM)
+    queueDict.get("accuracyLLVM_MuliplyFrequency").put(accuracyLLVM_MuliplyFrequency)
+    # accuracyMax_Queue.put(accuracyMax)
+    # accuracyCP_Queue.put(accuracyCP)
     sendPipe.send(50000)
     sendPipe.close()
     # print("MPI Process end {:2d} {}~{}".format(rank,startFileLine,endFileLine))
@@ -103,6 +102,16 @@ def fileLineNum(filename):
     fread.close() 
     return num_file
 
+def mergeQueue2dataDict(queueDict,dataDict):
+    for key, value in dataDict.dataDict.items():
+        ic(key,type(value))
+        if isinstance(value,set):
+            ic("set")
+            dataDict.dataDict[key]=dataDict.dataDict[key].union(ic(queueDict.dataDict[key].get()))
+        elif isinstance(value,defaultdict):
+            ic("defaultdict(int)")
+            dataDict.dataDict[key].update(ic(queueDict.dataDict[key].get()))
+    return dataDict
 def readPartFile(taskName,filename, dataDict):
     # unique_revBiblock,frequencyRevBiBlock,OSACAmaxCyclesRevBiBlock,OSACACPCyclesRevBiBlock,OSACALCDCyclesRevBiBlock,BhiveCyclesRevBiBlock,accuracyMax,accuracyCP,llvmmcaCyclesRevBiBlock,accuracyLLVM):
     num_file=fileLineNum(filename)
@@ -128,27 +137,19 @@ def readPartFile(taskName,filename, dataDict):
     # https://stackoverflow.com/questions/19924104/python-multiprocessing-handling-child-errors-in-parent
     multBar(taskName,ProcessNum,total,sendPipe,receivePipe,pList)
     
-    while unique_revBiblock_Queue.qsize()<ProcessNum:
-        print("QueueNum : {}".format(unique_revBiblock_Queue.qsize()))
+    while queueDict.get("unique_revBiblock").qsize()<ProcessNum:
+        print("QueueNum : {}".format(queueDict.get("unique_revBiblock").qsize()))
         sys.stdout.flush()
         time.sleep(5)
+
     # for p in pList:
     #     p.join() # 避免僵尸进程
         
     # for i in tqdm(range(ProcessNum)):
     for i in range(ProcessNum):
         # print("MPISum rank : {}, blockNum : {},leftQueueNum : {}".format(i,len(unique_revBiblock),unique_revBiblock_Queue.qsize()))
-        unique_revBiblock=unique_revBiblock.union(unique_revBiblock_Queue.get())
-        frequencyRevBiBlock.update(frequencyRevBiBlock_Queue.get())
-        llvmmcaCyclesRevBiBlock.update(llvmmcaCyclesRevBiBlock_Queue.get())
-        OSACAmaxCyclesRevBiBlock.update(OSACAmaxCyclesRevBiBlock_Queue.get())
-        OSACACPCyclesRevBiBlock.update(OSACACPCyclesRevBiBlock_Queue.get())
-        OSACALCDCyclesRevBiBlock.update(OSACALCDCyclesRevBiBlock_Queue.get())
-        BhiveCyclesRevBiBlock.update(BhiveCyclesRevBiBlock_Queue.get())
-        accuracyLLVM.update(accuracyLLVM_Queue.get())
-        accuracyMax.update(accuracyMax_Queue.get())
-        accuracyCP.update(accuracyCP_Queue.get())
-    return unique_revBiblock
+        dataDict=mergeQueue2dataDict(queueDict,dataDict)
+    return dataDict
     # print(unique_revBiblock)
     # print(frequencyRevBiBlock)
     # print(accuracyMax)
