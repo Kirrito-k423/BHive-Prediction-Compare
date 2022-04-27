@@ -61,7 +61,7 @@ def paralleReadProcess(filename,sendPipe,rank, startFileLine,endFileLine, queueD
 
             unique_revBiblock.add(block)
             frequencyRevBiBlock[block] = int(num)
-            BhiveCyclesRevBiBlock[block] = BHive(BHiveInputDel0xSpace(block),BHiveInputDel0xSpace(block),0)
+            BhiveCyclesRevBiBlock[block] = BHive(BHiveInputDelimiter(block),BHiveInputDel0xSpace(block),0)
             llvmmcaCyclesRevBiBlock[block] = LLVM_mca(capstone(capstoneInput(block)))
             # OSACAInput=saveOSACAInput2File(capstoneList(capstoneInput(block)),rank)
             # OSACAmaxCyclesRevBiBlock[block] = OSACA(password,OSACAInput,"max")
@@ -104,13 +104,13 @@ def fileLineNum(filename):
 
 def mergeQueue2dataDict(queueDict,dataDict):
     for key, value in dataDict.dataDict.items():
-        ic(key,type(value))
+        # ic(key,type(value))
         if isinstance(value,set):
-            ic("set")
-            dataDict.dataDict[key]=dataDict.dataDict[key].union(ic(queueDict.dataDict[key].get()))
+            # ic("set")
+            dataDict.dataDict[key]=dataDict.dataDict[key].union(queueDict.dataDict[key].get())
         elif isinstance(value,defaultdict):
-            ic("defaultdict(int)")
-            dataDict.dataDict[key].update(ic(queueDict.dataDict[key].get()))
+            # ic("defaultdict(int)")
+            dataDict.dataDict[key].update(queueDict.dataDict[key].get())
     return dataDict
 def readPartFile(taskName,filename, dataDict):
     # unique_revBiblock,frequencyRevBiBlock,OSACAmaxCyclesRevBiBlock,OSACACPCyclesRevBiBlock,OSACALCDCyclesRevBiBlock,BhiveCyclesRevBiBlock,accuracyMax,accuracyCP,llvmmcaCyclesRevBiBlock,accuracyLLVM):
@@ -134,8 +134,11 @@ def readPartFile(taskName,filename, dataDict):
     for p in pList:
         p.start()
     
+
     # https://stackoverflow.com/questions/19924104/python-multiprocessing-handling-child-errors-in-parent
-    multBar(taskName,ProcessNum,total,sendPipe,receivePipe,pList)
+    if glv._get("debug")=='no':
+        stdscr = curses.initscr()
+        multBar(taskName,ProcessNum,total,sendPipe,receivePipe,pList,stdscr)
     
     while queueDict.get("unique_revBiblock").qsize()<ProcessNum:
         print("QueueNum : {}".format(queueDict.get("unique_revBiblock").qsize()))

@@ -42,6 +42,7 @@ def inputParameters():
     glv._set("BHiveCount",args.BHiveCount)
     glv._set("ProcessNum",args.ProcessNum)
     glv._set("timeout",args.timeout)
+    glv._set("debug",args.debug)
     pPrint(glv.GLOBALS_DICT)
     passPrint("parameter BHiveCount is : %s" % args.BHiveCount)
     passPrint("parameter ProcessNum is : %s" % args.ProcessNum)

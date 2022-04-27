@@ -8,7 +8,7 @@ barCurrentNum=dict()
 barStartTime=dict()
 barBeforeTime=dict()
 barName=set()
-stdscr = curses.initscr()
+
 
 def is_positive(value):
     value = int(value)
@@ -182,7 +182,9 @@ def multBarCore(stdscr,Msg,ProcessNum,total,sendPipe,receivePipe,pList):
     clearBarInfo()
     unset_win()
 
-def multBar(Msg,ProcessNum,total,sendPipe,receivePipe,pList):
+def multBar(Msg,ProcessNum,total,sendPipe,receivePipe,pList,stdscrInput):
+    global stdscr
+    stdscr= stdscrInput
     processBeginTime=time.time()
     yellowPrint("\r{} : start multiple Processes at: {}".format(Msg,time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())))
     wrapper(multBarCore,Msg,ProcessNum,total,sendPipe,receivePipe,pList)  

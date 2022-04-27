@@ -1,4 +1,5 @@
 #include "harness.h"
+// #include "icecream.hpp"
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -6,7 +7,7 @@
 
 void main(int argc, char **argv) {
     measure_results_t res;
-    int count = 500;
+    int count = atoi(argv[2]);
     int byte_size = strlen(argv[1]) / 3;
     char * code_tmp[strlen(argv[1]) + 1];
     strcpy(code_tmp, argv[1]);
@@ -21,6 +22,7 @@ void main(int argc, char **argv) {
         add_code_tsv110[i] = intVal;
         i++;
     }
+    // IC(add_code_tsv110)
 
    /* int byte_size = strlen(argv[1]) / 2; */
    /* char *pos = argv[1]; */
