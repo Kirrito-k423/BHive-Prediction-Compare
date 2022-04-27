@@ -22,7 +22,9 @@ def LLVM_mcaCore(input):
     ic(outputlist)
     if len(outputlist)>3:
         regexResult=re.search("Total Cycles:      ([0-9]*)",outputlist[2])
-    if regexResult:
+    else:
+        regexResult=[]
+    if regexResult!=[]:
         resultCycle=regexResult.group(1)
         return resultCycle
     else:

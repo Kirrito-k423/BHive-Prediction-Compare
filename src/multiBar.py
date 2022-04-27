@@ -180,12 +180,13 @@ def multBarCore(stdscr,Msg,ProcessNum,total,sendPipe,receivePipe,pList):
             del receivePipe[ProcessID]
         time.sleep(0.2)
     clearBarInfo()
-    unset_win()
+    
 
 def multBar(Msg,ProcessNum,total,sendPipe,receivePipe,pList,stdscrInput):
     global stdscr
     stdscr= stdscrInput
     processBeginTime=time.time()
-    yellowPrint("\r{} : start multiple Processes at: {}".format(Msg,time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())))
+    unset_win()
+    yellowPrint("\n\r{} : start multiple Processes at: {}".format(Msg,time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())))
     wrapper(multBarCore,Msg,ProcessNum,total,sendPipe,receivePipe,pList)  
-    passPrint("{} : wait multiple Processes to finish: {}".format(Msg,time2String(int(time.time()-processBeginTime))))
+    passPrint("{} : wait {} to finish multiple Processes at: {}".format(Msg,time2String(int(time.time()-processBeginTime)),time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())))
