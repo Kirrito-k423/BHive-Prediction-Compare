@@ -77,5 +77,17 @@ python3 ./src/main.py -b 500 -p 20 -d no
 	ic.configureOutput(prefix='Debug -> ', outputFunction=yellowPrint)
 	```
 ## To do
+### bugs
 
-restructure my **shit** code
+python的子程序实现有问题，运行中，会有bhive-reg遗留下来（多达20个，需要按照下面手动kill，这也是核数建议为总核数的1/3的原因
+
+### check process create time
+```
+ps -eo pid,lstart,cmd |grep bhive
+date
+```
+### kill all process by name
+```
+ sudo ps -ef | grep 'bhive-re' | grep -v grep | awk '{print $2}' | sudo xargs -r kill -9
+```
+
