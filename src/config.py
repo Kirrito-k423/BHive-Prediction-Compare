@@ -18,7 +18,8 @@ glv._set("taskList",
                 "clang_harness_00all_skip_2":"Clang",
                 "MM_median_all_skip_2":"Eigen",
                 "Gzip_all_skip_2":"Gzip",
-                "redis_r1000000_n2000000_P16_all_skip_2":"Redis"})
+                "redis_r1000000_n2000000_P16_all_skip_2":"Redis",
+                "test_insns_blockFrequency_skip_2":"test_insns"})
 glv._set("taskfilenamesubfix","log")
 glv._set("OSACAPath","/home/qcjiang/softwares/anaconda3/bin/osaca")
 glv._set("LLVM_mcaPath","/home/shaojiemike/github/MyGithub/llvm-project/build/bin/llvm-mca")
