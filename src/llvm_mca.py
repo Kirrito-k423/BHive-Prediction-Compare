@@ -17,9 +17,9 @@ def LLVM_mca(input):
 def LLVM_mcaCore(input):
     sys.stdout.flush()
     command='echo "'+input+'" | '+glv._get("LLVM_mcaPath")+' -iterations='+str(glv._get("BHiveCount"))
-    ic(command)
-    outputlist=TIMEOUT_severalCOMMAND(command)
-    ic(outputlist)
+    # ic(command)
+    outputlist=TIMEOUT_severalCOMMAND(command,glv._get("timeout"))
+    # ic(outputlist)
     if len(outputlist)>3:
         regexResult=re.search("Total Cycles:      ([0-9]*)",outputlist[2])
     else:

@@ -12,7 +12,7 @@ import re
 #         return -1
 #     sys.stdout.flush()
 #     command=BHivePath+' '+input
-#     list=TIMEOUT_COMMAND(command)
+#     list=TIMEOUT_COMMAND(command,glv._get("timeout"))
     
 #     if list is None or len(list)==0:
 #         regexResult=None
@@ -39,8 +39,8 @@ def BHive(input,showinput,trytime):
 def BHiveCore(input):
     sys.stdout.flush()
     command=glv._get("BHivePath")+' '+input+" "+str(glv._get("BHiveCount"))
-    list=TIMEOUT_COMMAND(command)
-    ic(list)
+    list=TIMEOUT_COMMAND(command,glv._get("timeout"))
+    # ic(list)
 
     if list is None or len(list)==0:
         regexResult=None

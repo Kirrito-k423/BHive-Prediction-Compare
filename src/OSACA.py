@@ -3,7 +3,7 @@ def OSACA(password,inputFile,maxOrCP):
     # command='echo '+password+' | python '+OSACAPath+' --arch TSV110 '+str(inputFile)
     command='python '+OSACAPath+' --arch TSV110 '+str(inputFile)
     # print(command)
-    list=TIMEOUT_COMMAND(command)
+    list=TIMEOUT_COMMAND(command,glv._get("timeout"))
     if list and len(list)>1:
         lineNum=1
         while lineNum:
