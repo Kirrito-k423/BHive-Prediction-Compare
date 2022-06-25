@@ -77,7 +77,7 @@ python3 ./src/main.py -b 500 -p 20 -d no
 	ic.configureOutput(prefix='Debug -> ', outputFunction=yellowPrint)
 	```
 ## To do
-### bugs
+### bugs（已经修复）
 
 python的子程序实现有问题，运行中，会有bhive-reg遗留下来（多达20个，需要按照下面手动kill，这也是核数建议为总核数的1/3的原因
 
@@ -91,3 +91,28 @@ date
  sudo ps -ef | grep 'bhive-re' | grep -v grep | awk '{print $2}' | sudo xargs -r kill -9
 ```
 
+### 以为的原因
+
+subProcess.pool 返回程序状态的时候，除了运行和结束状态，还有休眠等其他状态。也就是程序在发射之后并不是直接进入运行状态的。判断程序是否超时不能通过判断是否运行，因为一开始while循环进不去
+```
+while process.poll() is None:
+```
+而应该是判断是否正常结束(208是BHive结束返回值，不同程序不同)
+```
+while process.poll() != 208:
+```
+### 继续分析
+实际debug还是有
+![](https://shaojiemike.oss-cn-hangzhou.aliyuncs.com/img/20220625173740.png)
+
+在debug输出里没有这些pid
+
+check了，输出的个数是符合的。
+
+不懂了，我都没调用，这僵尸进程哪里来的？除非是BHive产生的
+
+### 杀死进程组
+
+![](https://shaojiemike.oss-cn-hangzhou.aliyuncs.com/img/20220625185611.png)
+
+可能设定是timeout是20秒，但是htop程序运行了2分钟也没有kill。这是正常的，因为主程序挤占资源导致挂起了，导致无法及时判断和kill
