@@ -1,6 +1,14 @@
 # Bhive VS llvm-mca (vs OSACA) on ARMv7
 Reimplementation of the BHive profiler on ARMv7 kunpeng processor. The original can be found here: https://github.com/ithemal/bhive.
 
+## 程序运行流程简述
+
+1. 对于每个汇编的log文件(基本块二进制，以及次数)
+2. readPartFile分别读取，并并行执行
+	1. 每个子进程负责自己的部分，运行BHive和llvm-mca的值，并进行比较，计算偏差。
+3. Reduce结果
+4. 写入Excel文件。
+
 ## 安装
 ### 安装Bhive
 位于 `./bhive-reg`下，`make`产生`bhive`可执行文件

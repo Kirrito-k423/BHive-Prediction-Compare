@@ -16,6 +16,10 @@ glv._set("taskfilePath", "/home/shaojiemike/blockFrequency")
 #             "tensorflow_test_3":"tensorfw_3"})
 glv._set("taskList", 
                 {        
+                "FFTW_useFileNum_1_skipNum_0":"FFTW",
+                "lapack_useFileNum_1_skipNum_0":"lapack(dgetrf)", #DGETRF computes an LU factorization of a general M-by-N matrix A
+                "openblas_utest_useFileNum_4_skipNum_0":"OpenBLAS",
+                "EmbreeHello_useFileNum_1_skipNum_0":"Embree",
                 "tensorflow_41Gdir_00all_skip_2":"Tensorflow",
                 "clang_harness_00all_skip_2":"Clang",
                 "MM_median_all_skip_2":"Eigen",

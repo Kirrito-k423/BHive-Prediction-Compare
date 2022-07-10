@@ -27,7 +27,7 @@ def inputParameters():
         "--timeout",
         help="sub program interrupt time(eg. llvm-mca, bhive, OSACA. less time causes less useful output",
         dest="timeout",
-        type=int, default="120"
+        type=int, default="10"
     )
     parser.add_argument(
         "-d",

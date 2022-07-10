@@ -110,8 +110,16 @@ def mergeQueue2dataDict(queueDict,dataDict):
             dataDict.dataDict[key]=dataDict.dataDict[key].union(queueDict.dataDict[key].get())
         elif isinstance(value,defaultdict):
             # ic("defaultdict(int)")
-            dataDict.dataDict[key].update(queueDict.dataDict[key].get())
+            ic(key)
+            if key == "frequencyRevBiBlock":
+                a=dataDict.dataDict[key]
+                b=queueDict.dataDict[key].get()
+                for key2 in b:
+                    dataDict.dataDict[key][key2]=a[key2]+b[key2]
+            else:
+                dataDict.dataDict[key].update(queueDict.dataDict[key].get())
     return dataDict
+
 def readPartFile(taskName,filename, dataDict):
     # unique_revBiblock,frequencyRevBiBlock,OSACAmaxCyclesRevBiBlock,OSACACPCyclesRevBiBlock,OSACALCDCyclesRevBiBlock,BhiveCyclesRevBiBlock,accuracyMax,accuracyCP,llvmmcaCyclesRevBiBlock,accuracyLLVM):
     num_file=fileLineNum(filename)
