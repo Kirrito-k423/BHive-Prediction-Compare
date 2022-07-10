@@ -11,11 +11,12 @@ def add2Excel(wb,name,isFirstSheet,dataDict):
         # ws.title = name
     wb.create_sheet(name)
     ws = wb[name]
-    ws.append(["num","block_binary" , "ARM64_assembly_code", "block_frequency", "LLVM-MCA_result", "BHive", "accuracyLLVM", "accuracyLLVM * block_frequency" ]) # 添加行
-    ws.column_dimensions['B'].width = 62 # 修改列宽
-    ws.column_dimensions['H'].width = 30 # 修改列宽
-    for i in ['C','D','E','F','G','I','J','K']:
-        ws.column_dimensions[i].width = 15 # 修改列宽
+    ws.append(["num","block_binary" , "ARM64_assembly_code", "Num_of_instructions","block_frequency", "LLVM-MCA_result", "BHive", "accuracyLLVM", "accuracyLLVM * block_frequency" ]) # 添加行
+    ws.column_dimensions['B'].width = 80 # 修改列宽
+    ws.column_dimensions['I'].width = 30 # 修改列宽
+    ws.column_dimensions['C'].width = 40 # 修改列宽
+    for i in ['D','E','F','G','H','J','K']:
+        ws.column_dimensions[i].width = 20 # 修改列宽
     validNum=0
     unvalidNum=0
     BhiveSkipNum=0
@@ -33,6 +34,7 @@ def add2Excel(wb,name,isFirstSheet,dataDict):
             continue
         lineNum+=1
         tmpARMassembly=capstone(capstoneInput(tmp_block_binary_reverse))
+        ic(len(tmp_block_binary_reverse))
         if accuracyLLVM[tmp_block_binary_reverse] != 0:
             validNum+=frequencyRevBiBlock[tmp_block_binary_reverse]
             # totalAccuracyLLVM+=frequencyRevBiBlock[tmp_block_binary_reverse]*accuracyLLVM[tmp_block_binary_reverse]
@@ -46,10 +48,12 @@ def add2Excel(wb,name,isFirstSheet,dataDict):
             # realBHive=float(BhiveCyclesRevBiBlock[tmp_block_binary_reverse])
             # tmp=(OSACAMax+OSACACP)/2 * BHiveCount - realBHive
             # totalOSACAavg+=abs(tmp)/realBHive * count
-
+            # 会显得表格特别稀疏
+            # ws.row_dimensions[lineNum+1].height = int((len(tmp_block_binary_reverse)+1)/8) * 13.5
             ws.append(["{:5d} ".format(lineNum), 
                 tmp_block_binary_reverse,
                 tmpARMassembly,
+                int((len(tmp_block_binary_reverse)+1)/8),
                 frequencyRevBiBlock[tmp_block_binary_reverse],
                 # OSACAmaxCyclesRevBiBlock[tmp_block_binary_reverse],
                 # OSACACPCyclesRevBiBlock[tmp_block_binary_reverse],
@@ -64,9 +68,11 @@ def add2Excel(wb,name,isFirstSheet,dataDict):
 
         else:
             unvalidNum+=1
+            # ws.row_dimensions[lineNum+1].height = int((len(tmp_block_binary_reverse)+1)/8) * 13.5
             ws.append(["{:5d} ".format(lineNum), 
                 tmp_block_binary_reverse,
                 tmpARMassembly,
+                int((len(tmp_block_binary_reverse)+1)/8),
                 frequencyRevBiBlock[tmp_block_binary_reverse],
                 # OSACAmaxCyclesRevBiBlock[tmp_block_binary_reverse],
                 # OSACACPCyclesRevBiBlock[tmp_block_binary_reverse],
@@ -78,7 +84,7 @@ def add2Excel(wb,name,isFirstSheet,dataDict):
                 # accuracyMax[tmp_block_binary_reverse],
                 # accuracyCP[tmp_block_binary_reverse]]
                 "ops!"])
-    ws.append(["validNum {:d}".format(validNum),"llvmUnvalidNum {:d}".format(unvalidNum),"BhiveSkipNum {:d}".format(BhiveSkipNum)])
+    ws.append(["validTotalBlockNum(allow duplicates)  {:d}".format(validNum),"llvmUnvalidNum {:d}".format(unvalidNum),"BhiveSkipNum {:d}".format(BhiveSkipNum)])
     if validNum==0:
         llvmerror=0
     else:
