@@ -7,6 +7,7 @@ glv._init()
 glv._set("taskfilePath", "/home/shaojiemike/blockFrequency") # 输入文件集合所在的目录
 # glv._set("taskList",{"tensorflow_test_5":"test"})
 # glv._set("taskList",{"tensorflow_test_5":"test"})
+# glv._set("taskList",{"tensorflow_test_100":"test"})
 # glv._set("taskList",{"test_insns_blockFrequency_skip_2":"test_insns"})
 # glv._set("taskList",{"Gzip_all_skip_2":"Gzip"})
 # glv._set("taskList",{"tensorflow_41Gdir_00all_skip_2":"Tensorflow"})

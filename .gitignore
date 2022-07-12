@@ -57,3 +57,4 @@ test/debug.log
 bhive
 Pyenv/*
 *.pyc
+*.png

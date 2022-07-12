@@ -1,5 +1,6 @@
 from openpyxl import Workbook
 from openpyxl.chart import BarChart, PieChart, LineChart, Reference
+from openpyxl.drawing.image import Image
 from OSACA import capstoneInput
 from llvm_mca import capstone
 import global_variable as glv
@@ -135,5 +136,15 @@ def excelGraphBuild(wb):
     # 让线条和第一图的最大值相交
     ct_line.y_axis.crosses = 'max'
     ct_bar += ct_line # 只支持+=赋值，不能直接+
-    ws.add_chart(ct_bar, 'A10')
+    ws.add_chart(ct_bar, 'A20')
+    excelAddHeatmap(ws)
     wb.save(glv._get("excelOutPath"))
+
+def excelAddHeatmap(ws):
+    position=1
+    taskList = glv._get("taskList")
+    for taskKey, taskName in taskList.items():
+        img = Image("./pictures/"+taskName+".png")
+        img.width, img.height=(300,3*90)
+        ws.add_image(img, 'K'+str(position))
+        position+=15

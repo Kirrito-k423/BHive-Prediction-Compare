@@ -5,6 +5,7 @@ from config import pasteFullFileName
 import global_variable as glv
 from input_process import inputParameters, isIceEnable
 from terminal_command import checkFile
+from heatmap import generateHeatmapPic
 from excel import *
 from data import dataDictInit
 from multiProcess import *
@@ -26,6 +27,7 @@ def main():
 
         dataDict = readPartFile(taskName,filename, dataDict)
         print("blockSize {} {}".format(len(dataDict.get("unique_revBiblock")),len(dataDict.get("frequencyRevBiBlock"))))
+        generateHeatmapPic(taskName,dataDict)
         [llvmerror,osacaerror] = add2Excel(wb,taskName,isFirstSheet,dataDict)
         excelGraphAdd(wb,taskName,llvmerror,osacaerror)
         isFirstSheet=0
