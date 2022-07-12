@@ -16,19 +16,22 @@ def LLVM_mca(input):
 
 def LLVM_mcaCore(input):
     sys.stdout.flush()
-    command='echo "'+input+'" | '+glv._get("LLVM_mcaPath")+' -iterations='+str(glv._get("BHiveCount"))
+    command='echo "'+input+'" | '+glv._get("LLVM_mcaPath")+' -iterations='+str(glv._get("BHiveCount"))+" -noalias=false"
     # ic(command)
     outputlist=TIMEOUT_severalCOMMAND(command,glv._get("timeout"))
     # ic(outputlist)
-    if len(outputlist)>3:
-        regexResult=re.search("Total Cycles:      ([0-9]*)",outputlist[2])
+    if outputlist: 
+        if len(outputlist)>3:
+            regexResult=re.search("Total Cycles:      ([0-9]*)",outputlist[2])
+        else:
+            regexResult=[]
+        if regexResult!=[]:
+            resultCycle=regexResult.group(1)
+            return resultCycle
+        else:
+            # print("wrong")
+            return -1
     else:
-        regexResult=[]
-    if regexResult!=[]:
-        resultCycle=regexResult.group(1)
-        return resultCycle
-    else:
-        # print("wrong")
         return -1
 
 def capstone(string):
