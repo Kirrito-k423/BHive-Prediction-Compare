@@ -1,6 +1,11 @@
 # Bhive VS llvm-mca (vs OSACA) on ARMv7
 Reimplementation of the BHive profiler on ARMv7 kunpeng processor. The original can be found here: https://github.com/ithemal/bhive.
 
+## 仓库功能
+
+![](https://shaojiemike.oss-cn-hangzhou.aliyuncs.com/img/20220712154020.png)
+
+该仓库属于流程图的淡紫色模块的实现。
 ## 程序运行流程简述
 
 1. 对于每个汇编的log文件(基本块二进制，以及次数)
@@ -11,7 +16,9 @@ Reimplementation of the BHive profiler on ARMv7 kunpeng processor. The original 
 
 ## 安装
 ### 安装Bhive
-位于 `./bhive-reg`下，`make`产生`bhive`可执行文件
+位于 `./bhive-reg`下，`make`产生`bhive`可执行文件。
+
+安装完，测试如下：
 ```
 qcjiang@brainiac1:~/tests$ bhive \xc1\x02\x40\xb9\xe0\x03\x01\x2a\x00\x00\x18\xca\x00\xfc\x41\xd3\xd6\x12\x00\x91\xc1\x02\x40\xb9\xe0\x03\x01\x2a
 
@@ -27,8 +34,6 @@ Event num: 229
 ```
 mkdir build && cd build
 cmake -DLLVM_TARGETS_TO_BUILD="AArch64" -DCMAKE_BUILD_TYPE=Debug ../llvm
-#cmake  -DCMAKE_BUILD_TYPE=Debug ../llvm -v
-
 make llvm-mca -j VERBOSE=1
 ```
 ### python库
@@ -38,7 +43,7 @@ pip install -r requirements.txt
 
 ## 运行
 ### 运行前必须修改的选项
-执行文件等信息在`./src/config.py`下
+执行文件等信息在`./src/config.py`下。(必须修改Bhive，llvm-mca可执行文件路径)
 
 ### 查看选项
 ```
@@ -87,7 +92,9 @@ python3 ./src/main.py -b 500 -p 20 -d no
 ## To do
 ### bugs（已经修复）
 
-python的子程序实现有问题，运行中，会有bhive-reg遗留下来（多达20个，需要按照下面手动kill，这也是核数建议为总核数的1/3的原因
+<details>
+
+<summary>python的子程序实现有问题，运行中，会有bhive-reg遗留下来（多达20个，需要按照下面手动kill，这也是核数建议为总核数的1/3的原因</summary>
 
 ### check process create time
 ```
@@ -117,10 +124,14 @@ while process.poll() != 208:
 
 check了，输出的个数是符合的。
 
-不懂了，我都没调用，这僵尸进程哪里来的？除非是BHive产生的
+不懂了，我都没调用，这僵尸进程哪里来的？除非是BHive产生的。
+
+### 实际原因
+调用的Bhive会产生子进程，原本的python实现不能杀死子进程的子进程。需要改用杀死进程组的实现
 
 ### 杀死进程组
 
 ![](https://shaojiemike.oss-cn-hangzhou.aliyuncs.com/img/20220625185611.png)
 
 可能设定是timeout是20秒，但是htop程序运行了2分钟也没有kill。这是正常的，因为主程序挤占资源导致挂起了，导致无法及时判断和kill
+</details>
