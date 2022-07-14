@@ -34,7 +34,8 @@ def generateHeatmapPic(taskName,dataDict):
                     norm=colors.LogNorm(vmin=Z.min(), vmax=Z.max()),
                     cmap='Reds')
     fig.colorbar(pcm, ax=ax)
-    fig.suptitle('Heatmaps for BHiveU for basic blocks with a measured throughput of less than 10 cycles/iteration on Kunpeng', fontsize=16)
+    fig.suptitle('Heatmaps for BHiveU for basic blocks with a measured throughput \n\
+                    of less than 10 cycles/iteration on Kunpeng', fontsize=16)
     plt.savefig("./pictures/"+taskName+'.png')
 
 

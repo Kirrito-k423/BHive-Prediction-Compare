@@ -28,8 +28,8 @@ def main():
         dataDict = readPartFile(taskName,filename, dataDict)
         print("blockSize {} {}".format(len(dataDict.get("unique_revBiblock")),len(dataDict.get("frequencyRevBiBlock"))))
         generateHeatmapPic(taskName,dataDict)
-        [llvmerror,osacaerror] = add2Excel(wb,taskName,isFirstSheet,dataDict)
-        excelGraphAdd(wb,taskName,llvmerror,osacaerror)
+        [llvmerror,osacaerror,validBlockNum,validInstructionNum] = add2Excel(wb,taskName,isFirstSheet,dataDict)
+        excelGraphAdd(wb,taskName,llvmerror,osacaerror,validBlockNum,validInstructionNum)
         isFirstSheet=0
     excelGraphBuild(wb)
 if __name__ == "__main__":

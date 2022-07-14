@@ -19,16 +19,21 @@ glv._set("taskList",
                 {        
                 "ffmpeg_useFileNum_1_skipNum_0":"ffmpeg",
                 "FFTW_useFileNum_1_skipNum_0":"FFTW",
+                "fftw_runLog":"FFTW_runLog",
                 # "lapack_useFileNum_1_skipNum_0":"lapack(dgetrf)", #DGETRF computes an LU factorization of a general M-by-N matrix A
                 "lapack_runLog":"lapack_runLog(dgetrf)",
                 "openblas_utest_useFileNum_4_skipNum_0":"OpenBLAS",
                 "EmbreeHello_useFileNum_1_skipNum_0":"Embree",
+                "EmbreeHello_runLog":"Embree_runLog",
                 "tensorflow_41Gdir_00all_skip_2":"Tensorflow",
+                "tensorflow_20W_runLog":"Tensorflow_runLog_skip0",
                 # "clang_harness_00all_skip_2":"Clang",
                 "clang_make_runLog":"Clang_runLog",
                 "MM_median_all_skip_2":"Eigen",
                 "Gzip_all_skip_2":"Gzip",
+                "Gzip_clang_85G_N5443":"Gzip_85G_runLog",
                 "redis_r1000000_n2000000_P16_all_skip_2":"Redis",
+                "redis_r100000_n200000_N8452":"Redis_skip0",
                 "test_insns_blockFrequency_skip_2":"test_insns"}) # 输入文件名的前缀，和在excel里的名称
 glv._set("taskfilenamesubfix","log") # 输入文件名的后缀
 glv._set("OSACAPath","/home/qcjiang/softwares/anaconda3/bin/osaca") # OSACA 的测量对比暂时不再支持

@@ -18,7 +18,7 @@ def add2Excel(wb,name,isFirstSheet,dataDict):
     ws.column_dimensions['C'].width = 40 # 修改列宽
     for i in ['D','E','F','G','H','J','K']:
         ws.column_dimensions[i].width = 20 # 修改列宽
-    validNum=0
+    validInstructionNum=0
     unvalidNum=0
     BhiveSkipNum=0
     totalAccuracyLLVM=0.0
@@ -37,7 +37,7 @@ def add2Excel(wb,name,isFirstSheet,dataDict):
         tmpARMassembly=capstone(capstoneInput(tmp_block_binary_reverse))
         ic(len(tmp_block_binary_reverse))
         if accuracyLLVM[tmp_block_binary_reverse] != 0:
-            validNum+=frequencyRevBiBlock[tmp_block_binary_reverse]
+            validInstructionNum+=frequencyRevBiBlock[tmp_block_binary_reverse]
             # totalAccuracyLLVM+=frequencyRevBiBlock[tmp_block_binary_reverse]*accuracyLLVM[tmp_block_binary_reverse]
             totalAccuracyLLVM+=accuracyLLVM_MuliplyFrequency[tmp_block_binary_reverse]
             # totalaccuracyMax+=frequencyRevBiBlock[tmp_block_binary_reverse]*accuracyMax[tmp_block_binary_reverse]
@@ -85,14 +85,14 @@ def add2Excel(wb,name,isFirstSheet,dataDict):
                 # accuracyMax[tmp_block_binary_reverse],
                 # accuracyCP[tmp_block_binary_reverse]]
                 "ops!"])
-    ws.append(["validTotalBlockNum(allow duplicates)  {:d}".format(validNum),"llvmUnvalidNum {:d}".format(unvalidNum),"BhiveSkipNum {:d}".format(BhiveSkipNum)])
-    if validNum==0:
+    ws.append(["validTotalBlockNum(allow duplicates)  {:d}".format(validInstructionNum),"llvmUnvalidNum {:d}".format(unvalidNum),"BhiveSkipNum {:d}".format(BhiveSkipNum)])
+    if validInstructionNum==0:
         llvmerror=0
     else:
-        llvmerror=totalAccuracyLLVM/validNum
-    # osacaerror=totalOSACAavg/validNum
+        llvmerror=totalAccuracyLLVM/validInstructionNum
+    # osacaerror=totalOSACAavg/validInstructionNum
     osacaerror = 0
-    return [llvmerror,osacaerror]
+    return [llvmerror,osacaerror,lineNum,validInstructionNum]
 
 def excelGraphInit():
     wb = Workbook()
@@ -102,12 +102,15 @@ def excelGraphInit():
     ws.column_dimensions['A'].width = 15 # 修改列宽
     ws.column_dimensions['B'].width = 15 # 修改列宽
     ws.column_dimensions['C'].width = 15 # 修改列宽
-    ws.append(["applications","LLVM-MCA_error","OSACA_error"])
+    ws.column_dimensions['D'].width = 15 # 修改列宽
+    ws.column_dimensions['E'].width = 15 # 修改列宽
+    ws.column_dimensions['F'].width = 15 # 修改列宽
+    ws.append(["applications","LLVM-MCA_error","OSACA_error",'误差比值','有效Block数','指令总数(包括重复的)'])
     return wb
 
-def excelGraphAdd(wb,taskName,llvmerror,osacaerror):
+def excelGraphAdd(wb,taskName,llvmerror,osacaerror,validBlockNum,validInstructionNum):
     ws = wb["Graph"]
-    ws.append([taskName,llvmerror,osacaerror])
+    ws.append([taskName,llvmerror,osacaerror,0,validBlockNum,validInstructionNum])
 
 def excelGraphBuild(wb):
     # 一个图两个轴
