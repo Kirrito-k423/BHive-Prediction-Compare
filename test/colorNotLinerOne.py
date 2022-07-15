@@ -20,11 +20,32 @@ Z[10][50]=100
 ic(Z.min())
 ic(Z)
 
-fig, ax = plt.subplots(figsize=(8, 7))
+fig, ax = plt.subplots()
+ax.set_aspect('equal') 
+plt.axis("equal")
+plt.xlim([X.min(), X.max()])
+plt.ylim([Y.min(), Y.max()])
+#设置坐标轴刻度
+my_x_ticks = np.arange(0, 10.1, 1)
+ic(my_x_ticks)
+my_y_ticks = np.arange(0, 10.1, 1)
+plt.xticks(my_x_ticks)
+plt.yticks(my_y_ticks)
 
 ax.set_title('FFTW')
 ax.set_xlabel('Measured Throughput(Bhive)')
 ax.set_ylabel('Predicted Throughput(llvm-mca)')
+
+# Color: https://juejin.cn/post/6844904145032331272
+dotDensity=75
+dashLine = np.mgrid[0:10:complex(0, dotDensity)]
+ax.plot( dashLine, dashLine, linewidth=0.25,linestyle=":",color='silver') 
+ax.plot( dashLine, 0.9*dashLine, linewidth=0.25,linestyle=":",color='springgreen') 
+ax.plot( dashLine, 0.8*dashLine, linewidth=0.25,linestyle=":",color='royalblue') 
+dashLine = np.mgrid[0:10/1.1:complex(0, dotDensity)]
+ax.plot( dashLine, 1.1*dashLine, linewidth=0.25,linestyle=":",color='springgreen') 
+dashLine = np.mgrid[0:10/1.2:complex(0, dotDensity)]
+ax.plot( dashLine, 1.2*dashLine, linewidth=0.25,linestyle=":",color='royalblue') 
 pcm = ax.pcolor(X, Y, Z,
                    norm=colors.LogNorm(vmin=Z.min(), vmax=Z.max()),
                    cmap='Reds')

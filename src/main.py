@@ -9,6 +9,7 @@ from heatmap import generateHeatmapPic
 from excel import *
 from data import dataDictInit
 from multiProcess import *
+import time
 
 def main():
     ## icecream & input
@@ -19,18 +20,25 @@ def main():
     
     isFirstSheet=1
     taskList = glv._get("taskList")
+    processBeginTime=time.time()
+    colorPrint("\n\rstart multiple taskList at: {}".format(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())),"magenta")
+    
     for taskKey, taskName in taskList.items():
         # glv._set("filename",pasteFullFileName(taskKey))
         filename=pasteFullFileName(taskKey)
         ic(filename)
         dataDict = dataDictInit()
+        glv._set("historyDict",readDictFromExcel(taskName))
+        
 
         dataDict = readPartFile(taskName,filename, dataDict)
         print("blockSize {} {}".format(len(dataDict.get("unique_revBiblock")),len(dataDict.get("frequencyRevBiBlock"))))
         generateHeatmapPic(taskName,dataDict)
-        [llvmerror,osacaerror,validBlockNum,validInstructionNum] = add2Excel(wb,taskName,isFirstSheet,dataDict)
-        excelGraphAdd(wb,taskName,llvmerror,osacaerror,validBlockNum,validInstructionNum)
+
+        [llvmerror,baselineError,validBlockNum,validInstructionNum] = add2Excel(wb,taskName,isFirstSheet,dataDict)
+        excelGraphAdd(wb,taskName,llvmerror,baselineError,validBlockNum,validInstructionNum)
         isFirstSheet=0
-    excelGraphBuild(wb)
+    excelGraphBuild(wb,processBeginTime)
+    colorPrint("wait {} to finish taskList at: {}".format(time2String(int(time.time()-processBeginTime)),time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())),"magenta")
 if __name__ == "__main__":
     main()

@@ -38,16 +38,40 @@ def inputParameters():
         choices=["yes", "no"],
         default="yes",
     )
+    parser.add_argument(
+        "-hb",
+        "--historyBhive",
+        help="is use history Bhive data",
+        dest="useBhiveHistoryData",
+        type=str,
+        required=True,
+        choices=["yes", "no"],
+        default="yes",
+    )
+    parser.add_argument(
+        "-hm",
+        "--historyBaseline",
+        help="is use history llvm-mca data",
+        dest="useBaselineHistoryData",
+        type=str,
+        required=True,
+        choices=["yes", "no"],
+        default="yes",
+    )
     args = parser.parse_args()
     glv._set("BHiveCount",args.BHiveCount)
     glv._set("ProcessNum",args.ProcessNum)
     glv._set("timeout",args.timeout)
     glv._set("debug",args.debug)
+    glv._set("useBhiveHistoryData",args.useBhiveHistoryData)
+    glv._set("useBaselineHistoryData",args.useBaselineHistoryData)
     pPrint(glv.GLOBALS_DICT)
     passPrint("parameter BHiveCount is : %s" % args.BHiveCount)
     passPrint("parameter ProcessNum is : %s" % args.ProcessNum)
     passPrint("parameter timeout is : %d " % args.timeout)
     passPrint("parameter debug is : %s " % args.debug)
+    passPrint("parameter useBhiveHistoryData is : %s " % args.useBhiveHistoryData)
+    passPrint("parameter useBaselineHistoryData is : %s " % args.useBaselineHistoryData)
     yellowPrint("less timeout causes less or no output!!!")
     return args
 

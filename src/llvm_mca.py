@@ -12,11 +12,17 @@ def tryNtimes(func, time ,args):
     return -1
 
 def LLVM_mca(input):
-    return tryNtimes("LLVM_mcaCore",glv._get("failedRetryTimes"),input)
+    return LLVM_mcaCore(input,"LLVM_mcaPath")
 
-def LLVM_mcaCore(input):
+
+def LLVM_mcaBaseline(block,input):
+    if glv._get("isPageExisted")=="yes":
+        if block in glv._get("historyDict").dataDict["unique_revBiblock"]:
+            return glv._get("historyDict").dataDict["BaselineCyclesRevBiBlock"][block]
+    return LLVM_mcaCore(input,"LLVM_mcaBaselinePath")
+def LLVM_mcaCore(input,llvmGlvName):
     sys.stdout.flush()
-    command='echo "'+input+'" | '+glv._get("LLVM_mcaPath")+' -iterations='+str(glv._get("BHiveCount"))+" -noalias=false"
+    command='echo "'+input+'" | '+glv._get(llvmGlvName)+' -iterations='+str(glv._get("BHiveCount"))+" -noalias=false"
     # ic(command)
     outputlist=TIMEOUT_severalCOMMAND(command,glv._get("timeout"))
     # ic(outputlist)

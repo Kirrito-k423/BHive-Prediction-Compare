@@ -4,6 +4,74 @@ from openpyxl.drawing.image import Image
 from OSACA import capstoneInput
 from llvm_mca import capstone
 import global_variable as glv
+import time
+from multiBar import time2String
+from data import dataDictInit
+
+# https://blog.csdn.net/David_Dai_1108/article/details/78702032
+def readExcelSet(pageName, columnName):
+    unique_revBiblock=set()
+    if not columnName=="block_binary":
+        return unique_revBiblock
+    from openpyxl import load_workbook
+    # 只读模式打开文件
+    wb = load_workbook(glv._get("HistoryDataFile"), read_only=True)
+    # 获得所有 sheet 的名称()
+    name_list = wb.sheetnames
+    # 根据 sheet 名字获得 sheet
+    if pageName not in name_list:
+        ic(pageName,"Not existed")
+        return unique_revBiblock
+    ic(pageName,"existed")
+    my_sheet = wb[pageName]
+    for rowNum in range(2,my_sheet.max_row):
+        ic(rowNum)
+        unique_revBiblock.add(my_sheet["B"+str(rowNum)].value)
+    return unique_revBiblock
+
+def readExcelDict(pageName,columnName):
+    readDefaultdict = defaultdict(int)
+    if not(columnName=="BHive" or columnName=="Baseline"):
+        return readDefaultdict
+    elif columnName=="BHive":
+        columnLetter="H"
+    elif columnName=="Baseline":
+        columnLetter="G"
+    from openpyxl import load_workbook
+    # 只读模式打开文件
+    wb = load_workbook(glv._get("HistoryDataFile"), read_only=True)
+    # 获得所有 sheet 的名称()
+    name_list = wb.sheetnames
+    # 根据 sheet 名字获得 sheet
+    if pageName not in name_list:
+        ic(pageName,"Not existed")
+        return readDefaultdict
+    ic(pageName,"existed")
+    my_sheet = wb[pageName]
+    for rowNum in range(2,my_sheet.max_row):
+        ic(rowNum)
+        readDefaultdict[my_sheet["B"+str(rowNum)].value]=int(my_sheet[columnLetter+str(rowNum)].value)
+    return readDefaultdict
+
+def readDictFromExcel(taskName):
+    historyDict = dataDictInit()
+    if glv._get("useBhiveHistoryData")=="no" and glv._get("useBaselineHistoryData")=="no":
+        ic("hb hm is all NO!")
+        glv._set("isPageExisted","no")
+        return historyDict
+    history_unique_revBiblock = readExcelSet(taskName,"block_binary")
+    if not history_unique_revBiblock:
+        ic(taskName,"is Not Existed!")
+        glv._set("isPageExisted","no")
+        return historyDict
+    ic(taskName,"is Existed!")
+    glv._set("isPageExisted","yes")
+    history_BHive=readExcelDict(taskName,"BHive")
+    history_Baseline=readExcelDict(taskName,"Baseline")
+    historyDict.dataDict["unique_revBiblock"]=historyDict.dataDict["unique_revBiblock"].union(history_unique_revBiblock)
+    historyDict.dataDict["BhiveCyclesRevBiBlock"].update(history_BHive)
+    historyDict.dataDict["BaselineCyclesRevBiBlock"].update(history_Baseline)
+    return historyDict
 
 def add2Excel(wb,name,isFirstSheet,dataDict):
     #unique_revBiblock,frequencyRevBiBlock,OSACAmaxCyclesRevBiBlock,OSACACPCyclesRevBiBlock,OSACALCDCyclesRevBiBlock,BhiveCyclesRevBiBlock,accuracyMax,accuracyCP,llvmmcaCyclesRevBiBlock,accuracyLLVM):
@@ -12,19 +80,21 @@ def add2Excel(wb,name,isFirstSheet,dataDict):
         # ws.title = name
     wb.create_sheet(name)
     ws = wb[name]
-    ws.append(["num","block_binary" , "ARM64_assembly_code", "Num_of_instructions","block_frequency", "LLVM-MCA_result", "BHive", "accuracyLLVM", "accuracyLLVM * block_frequency" ]) # 添加行
+    ws.append(["num","block_binary" , "ARM64_assembly_code", "Num_of_instructions","block_frequency", "LLVM-MCA_result", "Baseline","BHive", "accuracyLLVM", "accuracyBaseline","accuracyLLVM * block_frequency" ,"accuracyBaseline * block_frequency" ]) # 添加行
     ws.column_dimensions['B'].width = 80 # 修改列宽
-    ws.column_dimensions['I'].width = 30 # 修改列宽
+    ws.column_dimensions['K'].width = 30 # 修改列宽
+    ws.column_dimensions['L'].width = 40 # 修改列宽
     ws.column_dimensions['C'].width = 40 # 修改列宽
-    for i in ['D','E','F','G','H','J','K']:
+    for i in ['D','E','F','G','H','I','J','K']:
         ws.column_dimensions[i].width = 20 # 修改列宽
     validInstructionNum=0
     unvalidNum=0
     BhiveSkipNum=0
     totalAccuracyLLVM=0.0
+    totalAccuracyLLVMBaseline=0.0
     # totalaccuracyMax=0.0
     # totalaccuracyCP=0.0
-    totalOSACAavg=0.0
+    # totalOSACAavg=0.0
     lineNum=0
     for key, value in dataDict.dataDict.items():
         globals()[key]=value 
@@ -40,6 +110,7 @@ def add2Excel(wb,name,isFirstSheet,dataDict):
             validInstructionNum+=frequencyRevBiBlock[tmp_block_binary_reverse]
             # totalAccuracyLLVM+=frequencyRevBiBlock[tmp_block_binary_reverse]*accuracyLLVM[tmp_block_binary_reverse]
             totalAccuracyLLVM+=accuracyLLVM_MuliplyFrequency[tmp_block_binary_reverse]
+            totalAccuracyLLVMBaseline += accuracyBaseline_MuliplyFrequency[tmp_block_binary_reverse]
             # totalaccuracyMax+=frequencyRevBiBlock[tmp_block_binary_reverse]*accuracyMax[tmp_block_binary_reverse]
             # totalaccuracyCP+=frequencyRevBiBlock[tmp_block_binary_reverse]*accuracyCP[tmp_block_binary_reverse]
 
@@ -60,9 +131,12 @@ def add2Excel(wb,name,isFirstSheet,dataDict):
                 # OSACACPCyclesRevBiBlock[tmp_block_binary_reverse],
                 # OSACALCDCyclesRevBiBlock[tmp_block_binary_reverse],
                 llvmmcaCyclesRevBiBlock[tmp_block_binary_reverse],
+                BaselineCyclesRevBiBlock[tmp_block_binary_reverse],
                 BhiveCyclesRevBiBlock[tmp_block_binary_reverse],
                 accuracyLLVM[tmp_block_binary_reverse],
-                accuracyLLVM_MuliplyFrequency[tmp_block_binary_reverse]]
+                accuracyBaseline[tmp_block_binary_reverse],
+                accuracyLLVM_MuliplyFrequency[tmp_block_binary_reverse],
+                accuracyBaseline_MuliplyFrequency[tmp_block_binary_reverse]]
                 # accuracyMax[tmp_block_binary_reverse],
                 # accuracyCP[tmp_block_binary_reverse]]
                 )
@@ -79,20 +153,25 @@ def add2Excel(wb,name,isFirstSheet,dataDict):
                 # OSACACPCyclesRevBiBlock[tmp_block_binary_reverse],
                 # OSACALCDCyclesRevBiBlock[tmp_block_binary_reverse],
                 llvmmcaCyclesRevBiBlock[tmp_block_binary_reverse],
+                BaselineCyclesRevBiBlock[tmp_block_binary_reverse],
                 BhiveCyclesRevBiBlock[tmp_block_binary_reverse],
                 accuracyLLVM[tmp_block_binary_reverse],
+                accuracyBaseline[tmp_block_binary_reverse],
                 accuracyLLVM_MuliplyFrequency[tmp_block_binary_reverse],
+                accuracyBaseline_MuliplyFrequency[tmp_block_binary_reverse],
                 # accuracyMax[tmp_block_binary_reverse],
                 # accuracyCP[tmp_block_binary_reverse]]
                 "ops!"])
     ws.append(["validTotalBlockNum(allow duplicates)  {:d}".format(validInstructionNum),"llvmUnvalidNum {:d}".format(unvalidNum),"BhiveSkipNum {:d}".format(BhiveSkipNum)])
     if validInstructionNum==0:
         llvmerror=0
+        baselineError=0
     else:
         llvmerror=totalAccuracyLLVM/validInstructionNum
+        baselineError=totalAccuracyLLVMBaseline/validInstructionNum
     # osacaerror=totalOSACAavg/validInstructionNum
-    osacaerror = 0
-    return [llvmerror,osacaerror,lineNum,validInstructionNum]
+    # osacaerror = 0
+    return [llvmerror,baselineError,lineNum,validInstructionNum]
 
 def excelGraphInit():
     wb = Workbook()
@@ -105,14 +184,14 @@ def excelGraphInit():
     ws.column_dimensions['D'].width = 15 # 修改列宽
     ws.column_dimensions['E'].width = 15 # 修改列宽
     ws.column_dimensions['F'].width = 15 # 修改列宽
-    ws.append(["applications","LLVM-MCA_error","OSACA_error",'误差比值','有效Block数','指令总数(包括重复的)'])
+    ws.append(["applications","LLVM-MCA_error","baseline_error",'误差比值','有效Block数','指令总数(包括重复的)'])
     return wb
 
-def excelGraphAdd(wb,taskName,llvmerror,osacaerror,validBlockNum,validInstructionNum):
+def excelGraphAdd(wb,taskName,llvmerror,baselineError,validBlockNum,validInstructionNum):
     ws = wb["Graph"]
-    ws.append([taskName,llvmerror,osacaerror,0,validBlockNum,validInstructionNum])
+    ws.append([taskName,llvmerror,baselineError,0,validBlockNum,validInstructionNum])
 
-def excelGraphBuild(wb):
+def excelGraphBuild(wb,processBeginTime):
     # 一个图两个轴
     ws = wb["Graph"]
     ct_bar = BarChart()
@@ -140,6 +219,7 @@ def excelGraphBuild(wb):
     ct_line.y_axis.crosses = 'max'
     ct_bar += ct_line # 只支持+=赋值，不能直接+
     ws.add_chart(ct_bar, 'A20')
+    ws.append(["time spent {}".format(time2String(int(time.time()-processBeginTime)))])
     excelAddHeatmap(ws)
     wb.save(glv._get("excelOutPath"))
 
@@ -150,4 +230,7 @@ def excelAddHeatmap(ws):
         img = Image("./pictures/"+taskName+".png")
         img.width, img.height=(300,3*90)
         ws.add_image(img, 'K'+str(position))
+        img = Image("./pictures/"+taskName+"_baseline.png")
+        img.width, img.height=(300,3*90)
+        ws.add_image(img, 'P'+str(position))
         position+=15
