@@ -9,7 +9,7 @@ from heatmap import generateHeatmapPic
 from excel import *
 from data import dataDictInit,readDictFromJson,saveDict2Json
 from multiProcess import *
-import time
+from logPrint import *
 
 def main():
     ## icecream & input
@@ -20,9 +20,8 @@ def main():
     
     isFirstSheet=1
     taskList = glv._get("taskList")
-    processBeginTime=time.time()
-    colorPrint("\n\rstart multiple taskList at: {}".format(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())),"magenta")
-    
+    processBeginTime=timeBeginPrint("multiple taskList")
+
     for taskKey, taskName in taskList.items():
         # glv._set("filename",pasteFullFileName(taskKey))
         filename=pasteFullFileName(taskKey)
@@ -39,7 +38,8 @@ def main():
         [llvmerror,baselineError,validBlockNum,validInstructionNum] = add2Excel(wb,taskName,isFirstSheet,dataDict)
         excelGraphAdd(wb,taskName,llvmerror,baselineError,validBlockNum,validInstructionNum)
         isFirstSheet=0
+        timeEndPrint(taskName,processBeginTime)
     excelGraphBuild(wb,processBeginTime)
-    colorPrint("wait {} to finish taskList at: {}".format(time2String(int(time.time()-processBeginTime)),time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())),"magenta")
+    timeEndPrint("multiple taskList",processBeginTime)
 if __name__ == "__main__":
     main()

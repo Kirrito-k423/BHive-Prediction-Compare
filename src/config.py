@@ -7,7 +7,7 @@ glv._init()
 glv._set("useBhiveHistoryData", "no") # 是否重用 历史文件里的Bhive数据
 glv._set("useLLVMHistoryData", "no") # 是否重用 历史文件里的llvm-mca Baseline数据
 glv._set("useBaselineHistoryData", "no") # 是否重用 历史文件里的llvm-mca Baseline数据
-glv._set("HistoryDataFile", "/home/shaojiemike/blockFrequency/Summary_BHiveCount5002022-07-15-23-21-02_tsj.xlsx") # for test
+glv._set("HistoryDataFile", "/home/shaojiemike/blockFrequency/Summary_BHiveCount5002022-07-16-13-48-37_tsj.xlsx") # for test
 # glv._set("HistoryDataFile", "/home/shaojiemike/blockFrequency/Summary_BHiveCount5002022-07-14-13-05-29_tsj.xlsx") # Full
 
 glv._set("taskfilePath", "/home/shaojiemike/blockFrequency") # 输入文件集合所在的目录
@@ -16,11 +16,11 @@ glv._set("taskfilePath", "/home/shaojiemike/blockFrequency") # 输入文件集�
 # glv._set("taskList",{"tensorflow_test_100":"test"})
 # glv._set("taskList",{"test_insns_blockFrequency_skip_2":"test_insns"})
 # glv._set("taskList",{"Gzip_all_skip_2":"Gzip"})
-glv._set("taskList",{"tensorflow_41Gdir_00all_skip_2":"Tensorflow"})
-# glv._set("taskList",{
-#             "tensorflow_test_100":"tensorflow_1",
-#             "tensorflow_test_5":"tensorflow_2",
-#             "tensorflow_test_3":"tensorfw_3"})
+# glv._set("taskList",{"tensorflow_41Gdir_00all_skip_2":"Tensorflow"})
+glv._set("taskList",{
+            "tensorflow_test_100":"tensorflow_1",
+            "tensorflow_test_5":"tensorflow_2",
+            "tensorflow_test_3":"tensorfw_3"})
 # glv._set("taskList", 
 #                 {        
 #                 "ffmpeg_useFileNum_1_skipNum_0":"ffmpeg",

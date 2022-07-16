@@ -51,6 +51,19 @@ def queueDictInit(dataDict):
         queueDict.set(key, Queue())
     return queueDict
 
+def isExcelPageExisted(pageName):
+    from openpyxl import load_workbook
+    # 只读模式打开文件
+    wb = load_workbook(glv._get("HistoryDataFile"), read_only=True)
+    # 获得所有 sheet 的名称()
+    name_list = wb.sheetnames
+    # 根据 sheet 名字获得 sheet
+    if pageName not in name_list:
+        ic(pageName,"Not existed")
+        return False
+    else:
+        return True
+        
 def readDictFromJson(taskName):
     historyDict = dataDictInit()
     if glv._get("useBhiveHistoryData")=="no" and glv._get("useBaselineHistoryData")=="no" and glv._get("useLLVMHistoryData")=="no":

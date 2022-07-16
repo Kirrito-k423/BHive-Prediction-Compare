@@ -10,18 +10,6 @@ from multiBar import time2String
 from data import dataDictInit
 from tsjPython.tsjCommonFunc import *
 
-def isExcelPageExisted(pageName):
-    from openpyxl import load_workbook
-    # 只读模式打开文件
-    wb = load_workbook(glv._get("HistoryDataFile"), read_only=True)
-    # 获得所有 sheet 的名称()
-    name_list = wb.sheetnames
-    # 根据 sheet 名字获得 sheet
-    if pageName not in name_list:
-        ic(pageName,"Not existed")
-        return False
-    else:
-        return True
 
 # https://blog.csdn.net/David_Dai_1108/article/details/78702032
 def readExcelSet(pageName, columnName):
@@ -197,12 +185,21 @@ def add2Excel(wb,name,isFirstSheet,dataDict):
                 toFill.fill=PatternFill('solid', fgColor='FF0000') # 红
             elif accuracyLLVM[tmp_block_binary_reverse] > 0.5:
                 toFill.fill=PatternFill('solid', fgColor='ffc7ce') # 浅红
+            elif accuracyLLVM[tmp_block_binary_reverse] > 0.25:
+                toFill.fill=PatternFill('solid', fgColor='FFFF00') # 黄
+            elif accuracyLLVM[tmp_block_binary_reverse] > 0.1:
+                toFill.fill=PatternFill('solid', fgColor='FFFF99') # 浅黄
             
             toFill=ws['K{}'.format(lineNum+1)]
             if accuracyBaseline[tmp_block_binary_reverse] > 1:
                 toFill.fill=PatternFill('solid', fgColor='FF0000') # 红
             elif accuracyBaseline[tmp_block_binary_reverse] > 0.5:
                 toFill.fill=PatternFill('solid', fgColor='ffc7ce') # 浅红
+            elif accuracyBaseline[tmp_block_binary_reverse] > 0.25:
+                toFill.fill=PatternFill('solid', fgColor='FFFF00') # 黄
+            elif accuracyBaseline[tmp_block_binary_reverse] > 0.1:
+                toFill.fill=PatternFill('solid', fgColor='FFFF99') # 浅黄
+
 
         else:
             unvalidNum+=1

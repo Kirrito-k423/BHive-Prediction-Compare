@@ -185,8 +185,9 @@ def readPartFile(taskName,filename, dataDict):
     for i in range(ProcessNum):
         # print("MPISum rank : {}, blockNum : {},leftQueueNum : {}".format(i,len(unique_revBiblock),unique_revBiblock_Queue.qsize()))
         dataDict=mergeQueue2dataDict(queueDict,dataDict)
-    if glv._get("isPageExisted")=="yes":
-        dataDict=mergeHistory2dataDict(glv._get("historyDict"),dataDict)
+    # 不需要merge，不然误差会降低一半
+    # if glv._get("isPageExisted")=="yes":
+    #     dataDict=mergeHistory2dataDict(glv._get("historyDict"),dataDict)
     return dataDict
     # print(unique_revBiblock)
     # print(frequencyRevBiBlock)
