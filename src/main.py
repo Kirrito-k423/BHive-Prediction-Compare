@@ -7,7 +7,7 @@ from input_process import inputParameters, isIceEnable
 from terminal_command import checkFile
 from heatmap import generateHeatmapPic
 from excel import *
-from data import dataDictInit
+from data import dataDictInit,readDictFromJson,saveDict2Json
 from multiProcess import *
 import time
 
@@ -28,10 +28,11 @@ def main():
         filename=pasteFullFileName(taskKey)
         ic(filename)
         dataDict = dataDictInit()
-        glv._set("historyDict",readDictFromExcel(taskName))
+        glv._set("historyDict",readDictFromJson(taskName))
         
 
         dataDict = readPartFile(taskName,filename, dataDict)
+        saveDict2Json(taskName,dataDict.dataDict)
         print("blockSize {} {}".format(len(dataDict.get("unique_revBiblock")),len(dataDict.get("frequencyRevBiBlock"))))
         generateHeatmapPic(taskName,dataDict)
 

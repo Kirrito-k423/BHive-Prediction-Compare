@@ -53,9 +53,10 @@ def paralleReadProcess(filename,sendPipe,rank, startFileLine,endFileLine, queueD
     # accuracyCP = defaultdict(float)
     # for line in tqdm(fread.readlines()[startFileLine:endFileLine],total=endFileLine-startFileLine,desc=str("{:2d}".format(rank))):
     i=1
+    sendSkipNum=int((endFileLine-startFileLine)/400)+1
     try:
         for line in fread.readlines()[startFileLine:endFileLine]:
-            if i%5==0:
+            if i%sendSkipNum==0:
                 sendPipe.send(i)
             i+=1
 
@@ -65,7 +66,7 @@ def paralleReadProcess(filename,sendPipe,rank, startFileLine,endFileLine, queueD
             unique_revBiblock.add(block)
             frequencyRevBiBlock[block] = int(num)
             BhiveCyclesRevBiBlock[block] = BHive(block,BHiveInputDelimiter(block))
-            llvmmcaCyclesRevBiBlock[block] = LLVM_mca(capstone(capstoneInput(block)))
+            llvmmcaCyclesRevBiBlock[block] = LLVM_mca(block,capstone(capstoneInput(block)))
             BaselineCyclesRevBiBlock[block] = LLVM_mcaBaseline(block,capstone(capstoneInput(block)))
             # OSACAInput=saveOSACAInput2File(capstoneList(capstoneInput(block)),rank)
             # OSACAmaxCyclesRevBiBlock[block] = OSACA(password,OSACAInput,"max")
@@ -96,7 +97,7 @@ def paralleReadProcess(filename,sendPipe,rank, startFileLine,endFileLine, queueD
     queueDict.get("accuracyBaseline_MuliplyFrequency").put(accuracyBaseline_MuliplyFrequency)
     # accuracyMax_Queue.put(accuracyMax)
     # accuracyCP_Queue.put(accuracyCP)
-    sendPipe.send(50000)
+    sendPipe.send(i+sendSkipNum)
     sendPipe.close()
     # print("MPI Process end {:2d} {}~{}".format(rank,startFileLine,endFileLine))
 

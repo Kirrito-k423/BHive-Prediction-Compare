@@ -49,6 +49,16 @@ def inputParameters():
         default="yes",
     )
     parser.add_argument(
+        "-hl",
+        "--historyLLVM",
+        help="is use history llvm-mca data",
+        dest="useLLVMHistoryData",
+        type=str,
+        required=True,
+        choices=["yes", "no"],
+        default="yes",
+    )
+    parser.add_argument(
         "-hm",
         "--historyBaseline",
         help="is use history llvm-mca data",
@@ -64,6 +74,7 @@ def inputParameters():
     glv._set("timeout",args.timeout)
     glv._set("debug",args.debug)
     glv._set("useBhiveHistoryData",args.useBhiveHistoryData)
+    glv._set("useLLVMHistoryData",args.useLLVMHistoryData)
     glv._set("useBaselineHistoryData",args.useBaselineHistoryData)
     pPrint(glv.GLOBALS_DICT)
     passPrint("parameter BHiveCount is : %s" % args.BHiveCount)
@@ -71,6 +82,7 @@ def inputParameters():
     passPrint("parameter timeout is : %d " % args.timeout)
     passPrint("parameter debug is : %s " % args.debug)
     passPrint("parameter useBhiveHistoryData is : %s " % args.useBhiveHistoryData)
+    passPrint("parameter useLLVMHistoryData is : %s " % args.useLLVMHistoryData)
     passPrint("parameter useBaselineHistoryData is : %s " % args.useBaselineHistoryData)
     yellowPrint("less timeout causes less or no output!!!")
     return args

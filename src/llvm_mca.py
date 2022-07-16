@@ -11,12 +11,15 @@ def tryNtimes(func, time ,args):
             return returnValue
     return -1
 
-def LLVM_mca(input):
+def LLVM_mca(block,input):
+    if glv._get("useLLVMHistoryData")=="yes" and glv._get("isPageExisted")=="yes":
+        if block in glv._get("historyDict").dataDict["unique_revBiblock"]:
+            return glv._get("historyDict").dataDict["llvmmcaCyclesRevBiBlock"][block]
     return LLVM_mcaCore(input,"LLVM_mcaPath")
 
 
 def LLVM_mcaBaseline(block,input):
-    if glv._get("isPageExisted")=="yes":
+    if glv._get("useBaselineHistoryData")=="yes" and glv._get("isPageExisted")=="yes":
         if block in glv._get("historyDict").dataDict["unique_revBiblock"]:
             return glv._get("historyDict").dataDict["BaselineCyclesRevBiBlock"][block]
     return LLVM_mcaCore(input,"LLVM_mcaBaselinePath")

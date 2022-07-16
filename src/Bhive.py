@@ -36,7 +36,7 @@ def tryNtimes(func, time ,args):
 # ,BHiveInputDel0xSpace(block),0
 # ,showinput,trytime
 def BHive(block,input):
-    if glv._get("isPageExisted")=="yes":
+    if glv._get("useBhiveHistoryData")=="yes" and glv._get("isPageExisted")=="yes":
         if block in glv._get("historyDict").dataDict["unique_revBiblock"]:
             return glv._get("historyDict").dataDict["BhiveCyclesRevBiBlock"][block]
     return tryNtimes("BHiveCore",glv._get("failedRetryTimes"),input)

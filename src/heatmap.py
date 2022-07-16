@@ -88,4 +88,5 @@ def generateHeatmapPic(taskName,dataDict):
     Z=ZfromBaseline(Z,dataDict,scale,fineness)
     drawPlt(X,Y,Z,taskName)
     plt.savefig("./pictures/"+taskName+'_baseline.png')
+    plt.close('all')
 
