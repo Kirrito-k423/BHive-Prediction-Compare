@@ -260,6 +260,28 @@ def excelGraphBuild(wb,processBeginTime):
     taskNum=len(glv._get("taskList"))
     ws['D1'] = '误差比值'
     for i in range(2, taskNum+2):
+        toFill=ws[f'B{i}']
+        toFillValue=ws[f'B{i}'].value
+        if toFillValue > 0.5:
+            toFill.fill=PatternFill('solid', fgColor='FF0000') #红
+        elif toFillValue > 0.2:
+            toFill.fill=PatternFill('solid', fgColor='ffc7ce') #浅红
+        elif toFillValue > 0.1:
+            toFill.fill=PatternFill('solid', fgColor='FFFF00') #黄
+        elif toFillValue <= 0.1:
+            toFill.fill=PatternFill('solid', fgColor='c6efce') #绿
+        toFill=ws[f'C{i}']
+        toFillValue=ws[f'C{i}'].value
+        if toFillValue > 0.5:
+            toFill.fill=PatternFill('solid', fgColor='FF0000') #红
+        elif toFillValue > 0.2:
+            toFill.fill=PatternFill('solid', fgColor='ffc7ce') #浅红
+        elif toFillValue > 0.1:
+            toFill.fill=PatternFill('solid', fgColor='FFFF00') #黄
+        elif toFillValue <= 0.1:
+            toFill.fill=PatternFill('solid', fgColor='c6efce') #绿
+
+
         if ws[f'B{i}'].value==0:
             ws[f'D{i}']=0
         else:

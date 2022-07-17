@@ -2,6 +2,7 @@ from terminal_command import TIMEOUT_COMMAND
 import sys
 import global_variable as glv
 import re
+import time
 
 # def checkBHiveResultStable(password,input,showinput,trytime):
 #     global BHiveCount
@@ -26,20 +27,31 @@ import re
 #     else:
 #         return checkBHiveResultStable(password,input,showinput,trytime+1)
 
-def tryNtimes(func, time ,args):
-    for i in range(time):
+def tryNtimes(func, RetryTime ,args):
+    for i in range(RetryTime):
         returnValue = eval(func)(args)
         if returnValue!=-1:
             return returnValue
+        time.sleep(glv._get("failedSleepTime"))
     return -1
 
+def BHiveResultStable(input):
+    firstResult=-2
+    returnResult=tryNtimes("BHiveCore",glv._get("failedRetryTimes"),input)
+    tryTimes=0
+    while returnResult != firstResult and tryTimes < glv._get("failedRetryTimes")+5:
+        if firstResult == -2 or returnResult != -1:
+            firstResult=returnResult
+        returnResult=tryNtimes("BHiveCore",glv._get("failedRetryTimes"),input)
+        tryTimes += 1
+    return firstResult
 # ,BHiveInputDel0xSpace(block),0
 # ,showinput,trytime
 def BHive(block,input):
     if glv._get("useBhiveHistoryData")=="yes" and glv._get("isPageExisted")=="yes":
         if block in glv._get("historyDict").dataDict["unique_revBiblock"]:
             return glv._get("historyDict").dataDict["BhiveCyclesRevBiBlock"][block]
-    return tryNtimes("BHiveCore",glv._get("failedRetryTimes"),input)
+    return BHiveResultStable(input)
 
 def BHiveCore(input):
     sys.stdout.flush()

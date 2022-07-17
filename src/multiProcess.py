@@ -53,7 +53,7 @@ def paralleReadProcess(filename,sendPipe,rank, startFileLine,endFileLine, queueD
     # accuracyCP = defaultdict(float)
     # for line in tqdm(fread.readlines()[startFileLine:endFileLine],total=endFileLine-startFileLine,desc=str("{:2d}".format(rank))):
     i=1
-    sendSkipNum=int((endFileLine-startFileLine)/400)+1
+    sendSkipNum=int((endFileLine-startFileLine)/100)+1
     try:
         for line in fread.readlines()[startFileLine:endFileLine]:
             if i%sendSkipNum==0:

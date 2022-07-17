@@ -39,7 +39,7 @@ def inputParameters():
         default="yes",
     )
     parser.add_argument(
-        "-hb",
+        "-hB",
         "--historyBhive",
         help="is use history Bhive data",
         dest="useBhiveHistoryData",
@@ -59,7 +59,7 @@ def inputParameters():
         default="yes",
     )
     parser.add_argument(
-        "-hm",
+        "-hb",
         "--historyBaseline",
         help="is use history llvm-mca data",
         dest="useBaselineHistoryData",
