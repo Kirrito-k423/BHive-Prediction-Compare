@@ -64,7 +64,7 @@ def barString(name,current=0,total=-1):
         leftNum=100-spaceNum
         retSting=retSting.ljust(spaceNum+len(retSting),space)
         retSting=retSting.ljust(leftNum+len(retSting),' ')
-        retSting+="| {} [{}<{}, {} s/it]".format(str(current)+"/"+str(total),time2String(pastTime),time2String(restTime),time2String(lastTime))
+        retSting+="| {} [{}<{}, {} s/it]".format(str(current)+"/"+str(total),time2String(pastTime),time2String(restTime),time2String(pastTime/(current+1)))
     return retSting 
 
 def display_info(str, x, y, colorpair=2):
