@@ -24,7 +24,6 @@ def TIMEOUT_COMMAND(command, timeout=10):
     ic("BHive-noUseOSACA-before",process.pid,process.poll())
     while process.poll() != 208: # poll()(好像BHive208是正常结束)返回0 正常结束， 1 sleep， 2 子进程不存在，-15 kill，None 在运行
         ic("BHive-noUseOSACA-During",process.pid,process.poll())
-        time.sleep(0.2)
         now = datetime.datetime.now()
         if (now - start).seconds> timeout:
             # BHive有子进程，需要杀死进程组。但是需要新生成进程组，不然会把自己kill掉
@@ -37,6 +36,7 @@ def TIMEOUT_COMMAND(command, timeout=10):
                 errorPrint("TIMEOUT_COMMAND kill failed! killPid %d process.pid %d killSig %d" % (killPid, process.pid, killSig))
             ic("Killed",process.pid,process.poll())
             return None
+        time.sleep(0.2)
     ic("BHive-noUseOSACA-Finished",process.pid,process.poll())
     return process.stdout.readlines()
 
@@ -49,7 +49,6 @@ def TIMEOUT_severalCOMMAND(command, timeout=10):
     ic("LLVM-before",process.pid,process.poll())
     while process.poll() is None: # poll()返回0 正常结束， 1 sleep， 2 子进程不存在，-15 kill，None 在运行
         ic("LLVM-During",process.pid,process.poll())
-        time.sleep(0.2)
         now = datetime.datetime.now()
         if (now - start).seconds> timeout:
             os.kill(process.pid, signal.SIGKILL)
@@ -60,6 +59,7 @@ def TIMEOUT_severalCOMMAND(command, timeout=10):
                 errorPrint("TIMEOUT_COMMAND kill failed! killPid %d process.pid %d killSig %d" % (killPid, process.pid, killSig))
             ic("LLVM-Killed",process.pid,process.poll())
             return None
+        time.sleep(0.2)
     ic("LLVM-Finished",process.pid,process.poll())
     return process.stdout.readlines()   
 
