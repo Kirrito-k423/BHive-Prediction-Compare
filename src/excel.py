@@ -252,6 +252,7 @@ def excelGraphInit():
 def excelGraphAdd(wb,taskName,llvmerror,baselineError,validBlockNum,validInstructionNum):
     ws = wb["Graph"]
     ws.append([taskName,llvmerror,baselineError,0,validBlockNum,validInstructionNum])
+    wb.save(glv._get("excelOutPath"))
 
 def excelGraphBuild(wb,processBeginTime):
     # 一个图两个轴
