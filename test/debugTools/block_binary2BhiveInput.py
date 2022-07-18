@@ -17,6 +17,6 @@ def BHiveInputDelimiter(block):
 # Addr: 0x3ee0033eef4
 # Event num: 283
 
-block_binary="200cc13c"
+block_binary="217c001b e09f40b9"
 
 print(BHiveInputDelimiter(block_binary))
