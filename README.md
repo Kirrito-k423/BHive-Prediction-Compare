@@ -1,4 +1,8 @@
 # Bhive VS llvm-mca (vs OSACA) on ARMv7
+
+
+[![OSCS Status](https://www.oscs1024.com/platform/badge/Kirrito-k423/BHive-Prediction-Compare.svg?size=small)](https://www.oscs1024.com/project/Kirrito-k423/BHive-Prediction-Compare?ref=badge_small)
+
 Reimplementation of the BHive profiler on ARMv7 kunpeng processor. The original can be found here: https://github.com/ithemal/bhive.
 
 ## 仓库功能
