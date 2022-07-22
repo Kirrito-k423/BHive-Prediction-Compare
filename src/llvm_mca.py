@@ -23,9 +23,13 @@ def LLVM_mcaBaseline(block,input):
         if block in glv._get("historyDict").dataDict["unique_revBiblock"]:
             return glv._get("historyDict").dataDict["BaselineCyclesRevBiBlock"][block]
     return LLVM_mcaCore(input,"LLVM_mcaBaselinePath")
+
 def LLVM_mcaCore(input,llvmGlvName):
     sys.stdout.flush()
-    command='echo "'+input+'" | '+glv._get(llvmGlvName)+' -iterations='+str(glv._get("BHiveCount"))+" -noalias=false"
+    if llvmGlvName=="LLVM_mcaBaselinePath":
+        command='echo "'+input+'" | '+glv._get(llvmGlvName)+' -iterations='+str(glv._get("BHiveCount")) #+" -noalias=false"
+    elif llvmGlvName=="LLVM_mcaPath":
+        command='echo "'+input+'" | '+glv._get(llvmGlvName)+' -iterations='+str(glv._get("BHiveCount")) +" -noalias=false"
     # ic(command)
     outputlist=TIMEOUT_severalCOMMAND(command,glv._get("timeout"))
     # ic(outputlist)
