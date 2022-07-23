@@ -246,12 +246,14 @@ def excelGraphInit():
     ws.column_dimensions['D'].width = 15 # 修改列宽
     ws.column_dimensions['E'].width = 15 # 修改列宽
     ws.column_dimensions['F'].width = 15 # 修改列宽
-    ws.append(["applications","LLVM-MCA_error","baseline_error",'误差比值','有效Block数','指令总数(包括重复的)'])
+    ws.column_dimensions['G'].width = 15 # 修改列宽
+    ws.column_dimensions['H'].width = 15 # 修改列宽
+    ws.append(["applications","LLVM-MCA_error","baseline_error",'误差比值','有效Block数','指令总数(包括重复的)',"KendallIndex", "baselineKendallIndex"])
     return wb
 
-def excelGraphAdd(wb,taskName,llvmerror,baselineError,validBlockNum,validInstructionNum):
+def excelGraphAdd(wb,taskName,llvmerror,baselineError,validBlockNum,validInstructionNum,KendallIndex, baselineKendallIndex):
     ws = wb["Graph"]
-    ws.append([taskName,llvmerror,baselineError,0,validBlockNum,validInstructionNum])
+    ws.append([taskName,llvmerror,baselineError,0,validBlockNum,validInstructionNum,KendallIndex, baselineKendallIndex])
     wb.save(glv._get("excelOutPath"))
 
 def excelGraphBuild(wb,processBeginTime):
