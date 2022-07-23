@@ -37,8 +37,8 @@ def calculateKendallIndex(dataDict):
                 else:
                     disConcordantPairsNumOfBaseline += 1
 
-        KendallIndex = (concordantPairsNum - disConcordantPairsNum)*1.0/(concordantPairsNum + disConcordantPairsNum)
-        baselineKendallIndex = (concordantPairsNumOfBaseline - disConcordantPairsNumOfBaseline)*1.0 /  (concordantPairsNumOfBaseline + disConcordantPairsNumOfBaseline)
-        return [KendallIndex, baselineKendallIndex]
+    KendallIndex = (concordantPairsNum - disConcordantPairsNum)*1.0/(concordantPairsNum + disConcordantPairsNum)
+    baselineKendallIndex = (concordantPairsNumOfBaseline - disConcordantPairsNumOfBaseline)*1.0 /  (concordantPairsNumOfBaseline + disConcordantPairsNumOfBaseline)
+    return [KendallIndex, baselineKendallIndex]
 
 
