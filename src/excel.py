@@ -9,7 +9,16 @@ import time
 from multiBar import time2String
 from data import dataDictInit
 from tsjPython.tsjCommonFunc import *
+from KendallIndex import calculateKendallIndex
 
+def addData2Excel(wb,taskName,isFirstSheet,dataDict):
+    [llvmerror,baselineError,validBlockNum,validInstructionNum] = add2Excel(wb,taskName,isFirstSheet,dataDict)
+    if glv._get("KendallIndex")=="yes":
+        [KendallIndex, baselineKendallIndex]=calculateKendallIndex(dataDict)
+    elif glv._get("KendallIndex")=="no":
+        KendallIndex=0
+        baselineKendallIndex=0
+    excelGraphAdd(wb,taskName,llvmerror,baselineError,validBlockNum,validInstructionNum,KendallIndex, baselineKendallIndex)
 
 # https://blog.csdn.net/David_Dai_1108/article/details/78702032
 def readExcelSet(pageName, columnName):

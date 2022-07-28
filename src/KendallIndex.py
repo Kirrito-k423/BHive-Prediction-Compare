@@ -1,6 +1,7 @@
-
+from logPrint import *
 
 def calculateKendallIndex(dataDict):
+    processBeginTime=timeBeginPrint("calculateKendallIndex")
     concordantPairsNum=0
     disConcordantPairsNum=0
     concordantPairsNumOfBaseline=0
@@ -11,34 +12,40 @@ def calculateKendallIndex(dataDict):
 
 
     for first_block_binary_reverse in unique_revBiblock:
-        for second_block_binary_reverse in unique_revBiblock:
-            if BhiveCyclesRevBiBlock[first_block_binary_reverse]==-1 or \
-                BhiveCyclesRevBiBlock[second_block_binary_reverse]==-1 or \
-                accuracyLLVM[first_block_binary_reverse] <= 0 or \
-                accuracyLLVM[second_block_binary_reverse] <= 0 or \
-                first_block_binary_reverse==second_block_binary_reverse:
+        tmpFirstBhive=BhiveCyclesRevBiBlock[first_block_binary_reverse]
+        tmpFirstBaseline = BaselineCyclesRevBiBlock[first_block_binary_reverse]
+        tmpFirstLLVM = llvmmcaCyclesRevBiBlock[first_block_binary_reverse]
+        if tmpFirstBhive==-1 or \
+                accuracyLLVM[first_block_binary_reverse] <= 0:
                 continue
-            if BhiveCyclesRevBiBlock[first_block_binary_reverse] >= BhiveCyclesRevBiBlock[second_block_binary_reverse]:
-                if llvmmcaCyclesRevBiBlock[first_block_binary_reverse] >= llvmmcaCyclesRevBiBlock[second_block_binary_reverse]:
+        for second_block_binary_reverse in unique_revBiblock:
+            tmpSecondBhive=BhiveCyclesRevBiBlock[second_block_binary_reverse]
+            if first_block_binary_reverse==second_block_binary_reverse or \
+                tmpSecondBhive ==-1 or \
+                accuracyLLVM[second_block_binary_reverse] <= 0 :
+                continue
+            if tmpFirstBhive >= tmpSecondBhive:
+                if tmpFirstLLVM >= llvmmcaCyclesRevBiBlock[second_block_binary_reverse]:
                     concordantPairsNum += 1
                 else:
                     disConcordantPairsNum += 1
-                if BaselineCyclesRevBiBlock[first_block_binary_reverse] >= BaselineCyclesRevBiBlock[second_block_binary_reverse]:
+                if tmpFirstBaseline >= BaselineCyclesRevBiBlock[second_block_binary_reverse]:
                     concordantPairsNumOfBaseline += 1
                 else:
                     disConcordantPairsNumOfBaseline += 1
             else:
-                if llvmmcaCyclesRevBiBlock[first_block_binary_reverse] < llvmmcaCyclesRevBiBlock[second_block_binary_reverse]:
+                if tmpFirstLLVM < llvmmcaCyclesRevBiBlock[second_block_binary_reverse]:
                     concordantPairsNum += 1
                 else:
                     disConcordantPairsNum += 1
-                if BaselineCyclesRevBiBlock[first_block_binary_reverse] < BaselineCyclesRevBiBlock[second_block_binary_reverse]:
+                if tmpFirstBaseline < BaselineCyclesRevBiBlock[second_block_binary_reverse]:
                     concordantPairsNumOfBaseline += 1
                 else:
                     disConcordantPairsNumOfBaseline += 1
 
     KendallIndex = (concordantPairsNum - disConcordantPairsNum)*1.0/(concordantPairsNum + disConcordantPairsNum)
     baselineKendallIndex = (concordantPairsNumOfBaseline - disConcordantPairsNumOfBaseline)*1.0 /  (concordantPairsNumOfBaseline + disConcordantPairsNumOfBaseline)
+    timeEndPrint("calculateKendallIndex",processBeginTime)
     return [KendallIndex, baselineKendallIndex]
 
 
