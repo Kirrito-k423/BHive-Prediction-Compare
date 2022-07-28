@@ -3,6 +3,7 @@ from multiprocessing import Queue
 from logPrint import *
 import sys
 import global_variable as glv
+from terminal_command import checkFile
 
 class dataDictClass():
     def __init__(self):
@@ -78,7 +79,9 @@ def readDictFromJson(taskName):
     glv._set("isPageExisted","yes")
     beginTime=timeBeginPrint(sys._getframe().f_code.co_name)
     import json
-    rf = open(glv._get("HistoryDataFile")+"_"+taskName)      # 将文件中的数据反序列化成内置的dict类型
+    checkFile(glv._get("HistoryDataFile")+"_data/")
+    rf = open(glv._get("HistoryDataFile")+"_data/"+taskName)      # 将文件中的数据反序列化成内置的dict类型
+    # rf = open(glv._get("HistoryDataFile")+"_"+taskName)      # 将文件中的数据反序列化成内置的dict类型
     historyDict.dataDict=json.load(fp=rf)
     timeEndPrint(sys._getframe().f_code.co_name,beginTime)
     return historyDict
@@ -90,7 +93,8 @@ def set_default(obj):
 def saveDict2Json(taskName,dataDict):
     beginTime=timeBeginPrint(sys._getframe().f_code.co_name)
     import json
-    wf = open(glv._get("excelOutPath")+"_"+taskName, 'w')  # 将dict类型对象序列化存储到文件中           
+    checkFile(glv._get("excelOutPath")+"_data/")
+    wf = open(glv._get("excelOutPath")+"_data/"+taskName, 'w')  # 将dict类型对象序列化存储到文件中           
     json.dump(obj=dataDict, fp=wf, default=set_default)
     timeEndPrint(sys._getframe().f_code.co_name,beginTime)
     

@@ -8,7 +8,6 @@ from terminal_command import checkFile
 from heatmap import generateHeatmapPic
 from excel import *
 from data import dataDictInit,readDictFromJson,saveDict2Json
-from KendallIndex import calculateKendallIndex
 from multiProcess import *
 from logPrint import *
 
@@ -36,9 +35,8 @@ def main():
         print("blockSize {} {}".format(len(dataDict.get("unique_revBiblock")),len(dataDict.get("frequencyRevBiBlock"))))
         generateHeatmapPic(taskName,dataDict)
 
-        [llvmerror,baselineError,validBlockNum,validInstructionNum] = add2Excel(wb,taskName,isFirstSheet,dataDict)
-        [KendallIndex, baselineKendallIndex]=calculateKendallIndex(dataDict)
-        excelGraphAdd(wb,taskName,llvmerror,baselineError,validBlockNum,validInstructionNum,KendallIndex, baselineKendallIndex)
+        addData2Excel(wb,taskName,isFirstSheet,dataDict)
+
         isFirstSheet=0
         timeEndPrint(taskName,processBeginTime)
     excelGraphBuild(wb,processBeginTime)
