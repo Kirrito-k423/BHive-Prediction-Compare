@@ -14,7 +14,9 @@ def Zfromllvm(Z,dataDict,scale,fineness):
     for tmp_block_binary_reverse in unique_revBiblock:
         if BhiveCyclesRevBiBlock[tmp_block_binary_reverse]==-1:
             continue
-        if accuracyLLVM[tmp_block_binary_reverse] != 0:
+        if accuracyLLVM[tmp_block_binary_reverse] >= 0 and \
+                accuracyMax[tmp_block_binary_reverse] >=0 and \
+                accuracyAvg[tmp_block_binary_reverse] >=0:
             tmpZ=frequencyRevBiBlock[tmp_block_binary_reverse]
             tmpYPosition=int(scale*(int(llvmmcaCyclesRevBiBlock[tmp_block_binary_reverse])*1.0/glv._get("BHiveCount")))
             tmpXPosition=int(scale*(int(BhiveCyclesRevBiBlock[tmp_block_binary_reverse])*1.0/glv._get("BHiveCount")))
@@ -32,7 +34,9 @@ def ZfromBaseline(Z,dataDict,scale,fineness):
     for tmp_block_binary_reverse in unique_revBiblock:
         if BhiveCyclesRevBiBlock[tmp_block_binary_reverse]==-1:
             continue
-        if accuracyLLVM[tmp_block_binary_reverse] != 0:
+        if accuracyLLVM[tmp_block_binary_reverse] >= 0 and \
+                accuracyMax[tmp_block_binary_reverse] >=0 and \
+                accuracyAvg[tmp_block_binary_reverse] >=0:
             tmpZ=frequencyRevBiBlock[tmp_block_binary_reverse]
             tmpYPosition=int(scale*(int(BaselineCyclesRevBiBlock[tmp_block_binary_reverse])*1.0/glv._get("BHiveCount")))
             tmpXPosition=int(scale*(int(BhiveCyclesRevBiBlock[tmp_block_binary_reverse])*1.0/glv._get("BHiveCount")))

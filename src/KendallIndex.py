@@ -22,13 +22,13 @@ def calculateKendallIndex(taskList,dataDict,sendPipe,rank,startTaskNum,endTaskNu
             tmpFirstBaseline = BaselineCyclesRevBiBlock[first_block_binary_reverse]
             tmpFirstLLVM = llvmmcaCyclesRevBiBlock[first_block_binary_reverse]
             if tmpFirstBhive==-1 or \
-                    accuracyLLVM[first_block_binary_reverse] <= 0:
+                    accuracyLLVM[first_block_binary_reverse] < 0:
                     continue
             for second_block_binary_reverse in unique_revBiblock:
                 tmpSecondBhive=BhiveCyclesRevBiBlock[second_block_binary_reverse]
                 if first_block_binary_reverse==second_block_binary_reverse or \
                     tmpSecondBhive ==-1 or \
-                    accuracyLLVM[second_block_binary_reverse] <= 0 :
+                    accuracyLLVM[second_block_binary_reverse] < 0 :
                     continue
                 if tmpFirstBhive >= tmpSecondBhive:
                     if tmpFirstLLVM >= llvmmcaCyclesRevBiBlock[second_block_binary_reverse]:

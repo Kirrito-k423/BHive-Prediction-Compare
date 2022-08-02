@@ -10,6 +10,7 @@ from multiBar import time2String
 from data import dataDictInit
 from tsjPython.tsjCommonFunc import *
 from multiProcess import parallelCalculateKendallIndex
+import string
 
 def addData2Excel(wb,taskName,isFirstSheet,dataDict):
     [llvmerror,baselineError,osacaMaxError,osacaAvgError,validBlockNum,validInstructionNum] = add2Excel(wb,taskName,isFirstSheet,dataDict)
@@ -104,17 +105,17 @@ def add2Excel(wb,name,isFirstSheet,dataDict):
     ws = wb[name]
     ws.append([ "num",                          "block_binary" ,                    "ARM64_assembly_code",  "Num_of_instructions",  "block_frequency",\
                 "block_frequency_percentage",   "LLVM-MCA_result",                  "Baseline",             "BHive",     \
-                "OSACA_CP"                      "OSACA_LCD",                        "OSACA_Max",            "OSACA_Avg",\
+                "OSACA_CP",                      "OSACA_LCD",                        "OSACA_Max",            "OSACA_Avg",\
                 "accuracyLLVM",                 "accuracyBaseline",                 "accuracyOSACA_Max",     "accuracyOSACA_Avg",\
                 "accuracyLLVM * block_frequency" ,  "accuracyBaseline * block_frequency",\
                 "accuracyOSACA_Max * block_frequency" ,  "accuracyOSACA_Avg * block_frequency" ]) # 添加行
     ws.column_dimensions['B'].width = 80 # 修改列宽
-    ws.column_dimensions['K'].width = 30 # 修改列宽
-    ws.column_dimensions['L'].width = 40 # 修改列宽
-    ws.column_dimensions['M'].width = 40 # 修改列宽
     ws.column_dimensions['C'].width = 40 # 修改列宽
-    for i in ['D','E','F','G','H','I','J','K']:
+    
+    for i in ['D','E','F','G','H','I','J','K','L','M']:
         ws.column_dimensions[i].width = 20 # 修改列宽
+    for i in string.ascii_uppercase[13:]:
+        ws.column_dimensions[i].width = 40 # 修改列宽   
     validInstructionNum=0
     unvalidNum=0
     BhiveSkipNum=0
@@ -131,10 +132,13 @@ def add2Excel(wb,name,isFirstSheet,dataDict):
     for tmp_block_binary_reverse in unique_revBiblock:
         if BhiveCyclesRevBiBlock[tmp_block_binary_reverse]==-1:
             continue
-        if accuracyLLVM[tmp_block_binary_reverse] != 0:
+        if accuracyLLVM[tmp_block_binary_reverse] >= 0 and \
+                accuracyMax[tmp_block_binary_reverse] >=0 and \
+                accuracyAvg[tmp_block_binary_reverse] >=0:
             validInstructionNum+=frequencyRevBiBlock[tmp_block_binary_reverse]
 
     lineNum=0
+    validBlockNum=0
     for tmp_block_binary_reverse in unique_revBiblock:
         if BhiveCyclesRevBiBlock[tmp_block_binary_reverse]==-1:
             BhiveSkipNum+=1
@@ -142,7 +146,10 @@ def add2Excel(wb,name,isFirstSheet,dataDict):
         lineNum+=1
         tmpARMassembly=capstone(capstoneInput(tmp_block_binary_reverse))
         ic(len(tmp_block_binary_reverse))
-        if accuracyLLVM[tmp_block_binary_reverse] != 0:
+        if accuracyLLVM[tmp_block_binary_reverse] >= 0 and \
+                accuracyMax[tmp_block_binary_reverse] >=0 and \
+                accuracyAvg[tmp_block_binary_reverse] >=0:
+            validBlockNum += 1
             # totalAccuracyLLVM+=frequencyRevBiBlock[tmp_block_binary_reverse]*accuracyLLVM[tmp_block_binary_reverse]
             frequencyPercentage         =   frequencyRevBiBlock[tmp_block_binary_reverse]*1.0/validInstructionNum
             totalAccuracyLLVM           +=  accuracyLLVM_MuliplyFrequency[tmp_block_binary_reverse]
@@ -166,7 +173,7 @@ def add2Excel(wb,name,isFirstSheet,dataDict):
                 '%.2f%%' % (frequencyPercentage * 100), llvmmcaCyclesRevBiBlock[tmp_block_binary_reverse],  BaselineCyclesRevBiBlock[tmp_block_binary_reverse], BhiveCyclesRevBiBlock[tmp_block_binary_reverse],
                 
                 OSACACPCyclesRevBiBlock[tmp_block_binary_reverse],OSACALCDCyclesRevBiBlock[tmp_block_binary_reverse],
-                OSACA_CPLCDmax_CyclesRevBiBlock[tmp_block_binary_reverse],OSACA_CPLCDavg_CyclesRevBiBlock[tmp_block_binary_reverse]
+                OSACA_CPLCDmax_CyclesRevBiBlock[tmp_block_binary_reverse],OSACA_CPLCDavg_CyclesRevBiBlock[tmp_block_binary_reverse],
                 
                 accuracyLLVM[tmp_block_binary_reverse],
                 accuracyBaseline[tmp_block_binary_reverse],
@@ -196,7 +203,7 @@ def add2Excel(wb,name,isFirstSheet,dataDict):
                     toFill=ws['H{}'.format(lineNum+1)]
                     toFill.fill=PatternFill('solid', fgColor='ffeb9c') # 黄
 
-            toFill=ws['L{}'.format(lineNum+1)]
+            toFill=ws['N{}'.format(lineNum+1)]
             if accuracyLLVM[tmp_block_binary_reverse] > 1:
                 toFill.fill=PatternFill('solid', fgColor='FF0000') # 红
             elif accuracyLLVM[tmp_block_binary_reverse] > 0.5:
@@ -206,7 +213,7 @@ def add2Excel(wb,name,isFirstSheet,dataDict):
             elif accuracyLLVM[tmp_block_binary_reverse] > 0.1:
                 toFill.fill=PatternFill('solid', fgColor='FFFF99') # 浅黄
             
-            toFill=ws['M{}'.format(lineNum+1)]
+            toFill=ws['O{}'.format(lineNum+1)]
             if accuracyBaseline[tmp_block_binary_reverse] > 1:
                 toFill.fill=PatternFill('solid', fgColor='FF0000') # 红
             elif accuracyBaseline[tmp_block_binary_reverse] > 0.5:
@@ -216,7 +223,7 @@ def add2Excel(wb,name,isFirstSheet,dataDict):
             elif accuracyBaseline[tmp_block_binary_reverse] > 0.1:
                 toFill.fill=PatternFill('solid', fgColor='FFFF99') # 浅黄
 
-            toFill=ws['N{}'.format(lineNum+1)]
+            toFill=ws['P{}'.format(lineNum+1)]
             if accuracyMax[tmp_block_binary_reverse] > 1:
                 toFill.fill=PatternFill('solid', fgColor='FF0000') # 红
             elif accuracyMax[tmp_block_binary_reverse] > 0.5:
@@ -226,7 +233,7 @@ def add2Excel(wb,name,isFirstSheet,dataDict):
             elif accuracyMax[tmp_block_binary_reverse] > 0.1:
                 toFill.fill=PatternFill('solid', fgColor='FFFF99') # 浅黄
 
-            toFill=ws['O{}'.format(lineNum+1)]
+            toFill=ws['Q{}'.format(lineNum+1)]
             if accuracyAvg[tmp_block_binary_reverse] > 1:
                 toFill.fill=PatternFill('solid', fgColor='FF0000') # 红
             elif accuracyAvg[tmp_block_binary_reverse] > 0.5:
@@ -241,12 +248,13 @@ def add2Excel(wb,name,isFirstSheet,dataDict):
             unvalidNum+=1
             # ws.row_dimensions[lineNum+1].height = int((len(tmp_block_binary_reverse)+1)/8) * 13.5
             frequencyPercentage=frequencyRevBiBlock[tmp_block_binary_reverse]*1.0/validInstructionNum
-            ws.append(["{:5d} ".format(lineNum),        tmp_block_binary_reverse,                           tmpARMassembly,                                     \
+            ws.append(["{:5d} ".format(lineNum),        tmp_block_binary_reverse                            ,tmpARMassembly,                                     \
                 int((len(tmp_block_binary_reverse)+1)/8),   frequencyRevBiBlock[tmp_block_binary_reverse],
-                '%.2f%%' % (frequencyPercentage * 100), llvmmcaCyclesRevBiBlock[tmp_block_binary_reverse],  BaselineCyclesRevBiBlock[tmp_block_binary_reverse], BhiveCyclesRevBiBlock[tmp_block_binary_reverse],
+                "not count", llvmmcaCyclesRevBiBlock[tmp_block_binary_reverse],  BaselineCyclesRevBiBlock[tmp_block_binary_reverse], \
+                BhiveCyclesRevBiBlock[tmp_block_binary_reverse],
                 
                 OSACACPCyclesRevBiBlock[tmp_block_binary_reverse],OSACALCDCyclesRevBiBlock[tmp_block_binary_reverse],
-                OSACA_CPLCDmax_CyclesRevBiBlock[tmp_block_binary_reverse],OSACA_CPLCDavg_CyclesRevBiBlock[tmp_block_binary_reverse]
+                OSACA_CPLCDmax_CyclesRevBiBlock[tmp_block_binary_reverse],OSACA_CPLCDavg_CyclesRevBiBlock[tmp_block_binary_reverse],
                 
                 accuracyLLVM[tmp_block_binary_reverse],
                 accuracyBaseline[tmp_block_binary_reverse],
@@ -256,7 +264,7 @@ def add2Excel(wb,name,isFirstSheet,dataDict):
                 accuracyLLVM_MuliplyFrequency[tmp_block_binary_reverse],
                 accuracyBaseline_MuliplyFrequency[tmp_block_binary_reverse],
                 frequencyRevBiBlock[tmp_block_binary_reverse]*accuracyMax[tmp_block_binary_reverse],
-                frequencyRevBiBlock[tmp_block_binary_reverse]*accuracyAvg[tmp_block_binary_reverse]   
+                frequencyRevBiBlock[tmp_block_binary_reverse]*accuracyAvg[tmp_block_binary_reverse],   
                 "ops!"])
     ws.append(["validTotalBlockNum(allow duplicates)  {:d}".format(validInstructionNum),"llvmUnvalidNum {:d}".format(unvalidNum),"BhiveSkipNum {:d}".format(BhiveSkipNum)])
     if validInstructionNum==0:
@@ -269,21 +277,15 @@ def add2Excel(wb,name,isFirstSheet,dataDict):
         baselineError=totalAccuracyLLVMBaseline/validInstructionNum
         osacaMaxError=totalaccuracyMax/validInstructionNum
         osacaAvgError=totalaccuracyAvg/validInstructionNum
-    return [llvmerror,baselineError,osacaMaxError,osacaAvgError,lineNum,validInstructionNum]
+    return [llvmerror,baselineError,osacaMaxError,osacaAvgError,validBlockNum,validInstructionNum]
 
 def excelGraphInit():
     wb = Workbook()
     ws = wb.active # 找当前Sheet
     ws.title = 'Graph'
     ws = wb["Graph"]
-    ws.column_dimensions['A'].width = 15 # 修改列宽
-    ws.column_dimensions['B'].width = 15 # 修改列宽
-    ws.column_dimensions['C'].width = 15 # 修改列宽
-    ws.column_dimensions['D'].width = 15 # 修改列宽
-    ws.column_dimensions['E'].width = 15 # 修改列宽
-    ws.column_dimensions['F'].width = 15 # 修改列宽
-    ws.column_dimensions['G'].width = 15 # 修改列宽
-    ws.column_dimensions['H'].width = 15 # 修改列宽
+    for i in string.ascii_uppercase[:14]:
+        ws.column_dimensions[i].width = 15 # 修改列宽
     ws.append(["applications","LLVM-MCA_error","baseline_error",'误差比值',"osacaMax_error","osacaAvg_error",'有效Block数','指令总数(包括重复的)',"KendallIndex", "baselineKendallIndex"])
     return wb
 
@@ -360,7 +362,7 @@ def excelAddHeatmap(ws):
     for taskKey, taskName in taskList.items():
         img = Image("./pictures/"+taskName+".png")
         img.width, img.height=(300,3*90)
-        ws.add_image(img, 'K'+str(position))
+        ws.add_image(img, 'L'+str(position))
         img = Image("./pictures/"+taskName+"_baseline.png")
         img.width, img.height=(300,3*90)
         ws.add_image(img, 'P'+str(position))

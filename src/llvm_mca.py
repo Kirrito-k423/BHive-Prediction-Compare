@@ -71,7 +71,7 @@ def calculateAccuracyLLVM(accurateCycles,predictionCycles):
     predictionCycles=float(predictionCycles)
     if accurateCycles <= 0 or predictionCycles <= 0:
         # print(" rank{}-0".format(rank))
-        return 0
+        return -1
     else:
         # print("{} {}".format(accurateCycles,predictionCycles))
         gap=abs(predictionCycles-accurateCycles)
