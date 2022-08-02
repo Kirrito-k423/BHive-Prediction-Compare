@@ -1,13 +1,16 @@
 import global_variable as glv
 import multiprocessing as mp
 from data import queueDictInit
-from multiprocessing import Pipe
+from multiprocessing import Pipe,Queue
 from multiBar import *
 from collections import defaultdict
 from Bhive import *
 from llvm_mca import *
 from OSACA import *
 from collections import defaultdict
+from KendallIndex import calculateKendallIndex
+from data import dataDictInit,readDictFromJson,saveDict2Json,dataDictClass
+
 
 class Process(mp.Process):
     def __init__(self, *args, **kwargs):
@@ -145,7 +148,7 @@ def mergeHistory2dataDict(historyDict,dataDict):
                 dataDict.dataDict[key].update(historyDict.dataDict[key])
     return dataDict
 
-def readPartFile(taskName,filename, dataDict):
+def parallelReadPartFile(taskName,filename, dataDict):
     # unique_revBiblock,frequencyRevBiBlock,OSACAmaxCyclesRevBiBlock,OSACACPCyclesRevBiBlock,OSACALCDCyclesRevBiBlock,BhiveCyclesRevBiBlock,accuracyMax,accuracyCP,llvmmcaCyclesRevBiBlock,accuracyLLVM):
     num_file=fileLineNum(filename)
     ProcessNum=glv._get("ProcessNum")
@@ -178,6 +181,7 @@ def readPartFile(taskName,filename, dataDict):
         sys.stdout.flush()
         time.sleep(5)
 
+    yellowPrint("Reducing parallel processes result...")
     # for p in pList:
     #     p.join() # 避免僵尸进程
         
@@ -189,6 +193,78 @@ def readPartFile(taskName,filename, dataDict):
     # if glv._get("isPageExisted")=="yes":
     #     dataDict=mergeHistory2dataDict(glv._get("historyDict"),dataDict)
     return dataDict
+    # print(unique_revBiblock)
+    # print(frequencyRevBiBlock)
+    # print(accuracyMax)
+    # print(len(unique_revBiblock))
+    # print(len(frequencyRevBiBlock))
+def mergeKendallIndexQueueDict(queueDict,ProcessNum):
+    concordantPairsNum=0
+    disConcordantPairsNum=0
+    concordantPairsNumOfBaseline=0
+    disConcordantPairsNumOfBaseline=0
+
+
+    for i in range(0,ProcessNum):
+        concordantPairsNum+=queueDict.dataDict["concordantPairsNum"].get()
+        disConcordantPairsNum+=queueDict.dataDict["disConcordantPairsNum"].get()
+        concordantPairsNumOfBaseline+=queueDict.dataDict["concordantPairsNumOfBaseline"].get()
+        disConcordantPairsNumOfBaseline+=queueDict.dataDict["disConcordantPairsNumOfBaseline"].get()
+            
+    return [concordantPairsNum,disConcordantPairsNum,concordantPairsNumOfBaseline,disConcordantPairsNumOfBaseline]
+
+def parallelCalculateKendallIndex(taskName,dataDict):
+    ProcessNum=glv._get("ProcessNum")
+
+    # queueDictInit
+    queueDict = dataDictClass()
+    queueDict.set("concordantPairsNum",Queue())
+    queueDict.set("disConcordantPairsNum",Queue())
+    queueDict.set("concordantPairsNumOfBaseline",Queue())
+    queueDict.set("disConcordantPairsNumOfBaseline",Queue())
+
+    taskList=list(dataDict.get("unique_revBiblock"))
+    task_num=len(taskList)
+
+    sendPipe=dict()
+    receivePipe=dict()
+    total=dict()
+
+    pList=[]
+    for i in range(ProcessNum):
+        startTaskNum=int(i*task_num/ProcessNum)
+        endTaskNum=int((i+1)*task_num/ProcessNum)
+        receivePipe[i], sendPipe[i] = Pipe(False)
+        total[i]=endTaskNum-startTaskNum
+        pList.append(Process(target=calculateKendallIndex, args=(taskList,dataDict,sendPipe[i],i,startTaskNum,endTaskNum,queueDict)))
+
+    for p in pList:
+        p.start()
+    
+
+    # https://stackoverflow.com/questions/19924104/python-multiprocessing-handling-child-errors-in-parent
+    if glv._get("debug")=='no':
+        stdscr = curses.initscr()
+        multBar(taskName+"_KendallIndex",ProcessNum,total,sendPipe,receivePipe,pList,stdscr)
+    
+    while queueDict.get("disConcordantPairsNumOfBaseline").qsize()<ProcessNum:
+        print("QueueNum : {}".format(queueDict.get("disConcordantPairsNumOfBaseline").qsize()))
+        sys.stdout.flush()
+        time.sleep(5)
+
+    # for p in pList:
+    #     p.join() # 避免僵尸进程
+        
+    # for i in tqdm(range(ProcessNum)):
+    [concordantPairsNum,disConcordantPairsNum,concordantPairsNumOfBaseline,disConcordantPairsNumOfBaseline]\
+            =mergeKendallIndexQueueDict(queueDict,ProcessNum)
+    # 不需要merge，不然误差会降低一半
+    # if glv._get("isPageExisted")=="yes":
+    #     dataDict=mergeHistory2dataDict(glv._get("historyDict"),dataDict)
+    KendallIndex = (concordantPairsNum - disConcordantPairsNum)*1.0/(concordantPairsNum + disConcordantPairsNum)
+    baselineKendallIndex = (concordantPairsNumOfBaseline - disConcordantPairsNumOfBaseline)*1.0 /  (concordantPairsNumOfBaseline + disConcordantPairsNumOfBaseline)
+    
+    return [KendallIndex, baselineKendallIndex]
     # print(unique_revBiblock)
     # print(frequencyRevBiBlock)
     # print(accuracyMax)

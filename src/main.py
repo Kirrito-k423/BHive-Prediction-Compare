@@ -23,14 +23,14 @@ def main():
     processBeginTime=timeBeginPrint("multiple taskList")
 
     for taskKey, taskName in taskList.items():
-        # glv._set("filename",pasteFullFileName(taskKey))
+        errorPrint("-----------------------------------Task cut line----------------------------------------")
         filename=pasteFullFileName(taskKey)
         ic(filename)
         dataDict = dataDictInit()
         glv._set("historyDict",readDictFromJson(taskName))
         
 
-        dataDict = readPartFile(taskName,filename, dataDict)
+        dataDict = parallelReadPartFile(taskName,filename, dataDict)
         saveDict2Json(taskName,dataDict.dataDict)
         print("blockSize {} {}".format(len(dataDict.get("unique_revBiblock")),len(dataDict.get("frequencyRevBiBlock"))))
         generateHeatmapPic(taskName,dataDict)

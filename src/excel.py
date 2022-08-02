@@ -9,12 +9,12 @@ import time
 from multiBar import time2String
 from data import dataDictInit
 from tsjPython.tsjCommonFunc import *
-from KendallIndex import calculateKendallIndex
+from multiProcess import parallelCalculateKendallIndex
 
 def addData2Excel(wb,taskName,isFirstSheet,dataDict):
     [llvmerror,baselineError,validBlockNum,validInstructionNum] = add2Excel(wb,taskName,isFirstSheet,dataDict)
     if glv._get("KendallIndex")=="yes":
-        [KendallIndex, baselineKendallIndex]=calculateKendallIndex(dataDict)
+        [KendallIndex, baselineKendallIndex]=parallelCalculateKendallIndex(taskName,dataDict)
     elif glv._get("KendallIndex")=="no":
         KendallIndex=0
         baselineKendallIndex=0
