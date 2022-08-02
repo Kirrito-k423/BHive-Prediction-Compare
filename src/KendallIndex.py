@@ -11,11 +11,12 @@ def calculateKendallIndex(taskList,dataDict,sendPipe,rank,startTaskNum,endTaskNu
         globals()[key]=value 
 
     sendSkipNum=int((endTaskNum-startTaskNum)/100)+1
-    i=0
+    sendi=0
     try:
         for i in range(startTaskNum,endTaskNum):
-            if i%sendSkipNum==0:
-                sendPipe.send(i)
+            sendi=i-startTaskNum
+            if sendi%sendSkipNum==0:
+                sendPipe.send(sendi)
             first_block_binary_reverse=taskList[i]
             tmpFirstBhive=BhiveCyclesRevBiBlock[first_block_binary_reverse]
             tmpFirstBaseline = BaselineCyclesRevBiBlock[first_block_binary_reverse]
@@ -56,7 +57,7 @@ def calculateKendallIndex(taskList,dataDict,sendPipe,rank,startTaskNum,endTaskNu
     queueDict.get("disConcordantPairsNum").put(disConcordantPairsNum)
     queueDict.get("concordantPairsNumOfBaseline").put(concordantPairsNumOfBaseline)
     queueDict.get("disConcordantPairsNumOfBaseline").put(disConcordantPairsNumOfBaseline)
-    sendPipe.send(i+sendSkipNum)
+    sendPipe.send(sendi+sendSkipNum)
     sendPipe.close()
     # KendallIndex = (concordantPairsNum - disConcordantPairsNum)*1.0/(concordantPairsNum + disConcordantPairsNum)
     # baselineKendallIndex = (concordantPairsNumOfBaseline - disConcordantPairsNumOfBaseline)*1.0 /  (concordantPairsNumOfBaseline + disConcordantPairsNumOfBaseline)
