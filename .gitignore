@@ -58,3 +58,4 @@ bhive
 Pyenv/*
 *.pyc
 *.png
+*.pgf

@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
+import matplotlib
 import global_variable as glv
 
 def Zfromllvm(Z,dataDict,scale,fineness):
@@ -40,7 +41,8 @@ def ZfromBaseline(Z,dataDict,scale,fineness):
     return Z
 
 def drawPlt(X,Y,Z,taskName):
-    fig, ax = plt.subplots(figsize=(8, 6.5))
+    fig, ax = plt.subplots()
+    fig.set_size_inches(w=7.1413, h=5.75) #(8, 6.5)
 
     ax.set_title(taskName)
     ax.set_xlabel('Measured Throughput(Bhive)')
@@ -49,16 +51,16 @@ def drawPlt(X,Y,Z,taskName):
     # Color: https://juejin.cn/post/6844904145032331272
     dotDensity=75
     dashLine = np.mgrid[0:10:complex(0, dotDensity)]
-    ax.plot( dashLine, dashLine, linewidth=0.25,linestyle=":",color='silver') 
-    ax.plot( dashLine, 0.9*dashLine, linewidth=0.25,linestyle=":",color='springgreen') 
-    ax.plot( dashLine, 0.8*dashLine, linewidth=0.25,linestyle=":",color='royalblue') 
+    ax.plot( dashLine, dashLine,        linewidth=0.25,linestyle=":",color='silver') 
+    ax.plot( dashLine, 0.9*dashLine,    linewidth=0.25,linestyle=":",color='springgreen') 
+    ax.plot( dashLine, 0.8*dashLine,    linewidth=0.25,linestyle=":",color='royalblue') 
     dashLine = np.mgrid[0:10/1.1:complex(0, dotDensity)]
-    ax.plot( dashLine, 1.1*dashLine, linewidth=0.25,linestyle=":",color='springgreen') 
+    ax.plot( dashLine, 1.1*dashLine,    linewidth=0.25,linestyle=":",color='springgreen') 
     dashLine = np.mgrid[0:10/1.2:complex(0, dotDensity)]
-    ax.plot( dashLine, 1.2*dashLine, linewidth=0.25,linestyle=":",color='royalblue') 
+    ax.plot( dashLine, 1.2*dashLine,    linewidth=0.25,linestyle=":",color='royalblue') 
     pcm = ax.pcolor(X, Y, Z-1.0,
                     norm=colors.LogNorm(vmin=Z.min(), vmax=Z.max()),
-                    cmap='Reds')
+                    cmap='Blues')
     fig.colorbar(pcm, ax=ax)
     # fig.suptitle('Heatmaps for BHiveU for basic blocks with a measured throughput \n\
     #                 of less than 10 cycles/iteration on Kunpeng', fontsize=16)
@@ -77,16 +79,53 @@ def generateHeatmapPic(taskName,dataDict):
     fineness = 100 # xy轴的粒度
     XYMax=10
     scale = fineness/XYMax
-    X, Y = np.mgrid[0:XYMax:complex(0, fineness), 0:XYMax:complex(0, fineness)]
+    X, Y = np.around(np.mgrid[0:XYMax:complex(0, fineness), 0:XYMax:complex(0, fineness)], decimals=1)
+
 
     Z=X*0+1.0
     Z=Zfromllvm(Z,dataDict,scale,fineness)
+    saveHeatmapDataForPaper(X,Y,Z,glv._get("excelOutPath")+"_data/"+taskName+'.HeatmapData')
     drawPlt(X,Y,Z,taskName)
     plt.savefig("./pictures/"+taskName+'.png')
+    
+    matplotlib.use("pgf")
+    matplotlib.rcParams.update({
+        "pgf.texsystem": "pdflatex",
+        'font.family': 'serif',
+        'text.usetex': True,
+        'pgf.rcfonts': False,
+    })
+    plt.savefig("./pictures/"+taskName+'.pgf')
 
     Z=X*0+1.0
     Z=ZfromBaseline(Z,dataDict,scale,fineness)
     drawPlt(X,Y,Z,taskName+"_baseline")
+    saveHeatmapDataForPaper(X,Y,Z,glv._get("excelOutPath")+"_data/"+taskName+'.baselineHeatmapData')
     plt.savefig("./pictures/"+taskName+'_baseline.png')
+
+    matplotlib.use("pgf")
+    matplotlib.rcParams.update({
+        "pgf.texsystem": "pdflatex",
+        'font.family': 'serif',
+        'text.usetex': True,
+        'pgf.rcfonts': False,
+    })
+    plt.savefig("./pictures/"+taskName+'_baseline.pgf')
+
     plt.close('all')
+
+def saveHeatmapDataForPaper(X,Y,Z,filename):
+    fw = open(filename, 'w')    #将要输出保存的文件地址
+    width=len(X)
+    height=len(Y)
+    ic(width,height)
+    ic(X,Y,Z)
+    for i in range(width):
+        if i%4 == 0:
+            for j in range(height):
+                # if Z[i][j]!= 1: # 每个点都需要
+                if j%4 == 0:
+                    fw.write(str(round(X[i][j],1))+" "+str(round(Y[i][j],1))+" "+str(Z[i][j]-1)+"\n")    # 将字符串写入文件中
+            fw.write("\n")
+    fw.close()
 

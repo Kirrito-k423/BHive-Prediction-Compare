@@ -3,7 +3,8 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 from icecream import ic
 N = 100
-X, Y = np.mgrid[0:10:complex(0, N), 0:10:complex(0, N)]
+X, Y = np.around(np.mgrid[0:10:complex(0, N), 0:10:complex(0, N)], decimals=1)
+
 
 ic(X)
 ic(Y)
