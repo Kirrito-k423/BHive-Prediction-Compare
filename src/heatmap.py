@@ -3,6 +3,9 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 import matplotlib
 import global_variable as glv
+from tsjPython.tsjCommonFunc import *
+from logPrint import *
+import sys
 
 def Zfromllvm(Z,dataDict,scale,fineness):
     for key, value in dataDict.dataDict.items():
@@ -76,6 +79,7 @@ def drawPlt(X,Y,Z,taskName):
     return plt
 
 def generateHeatmapPic(taskName,dataDict):
+    beginTime=timeBeginPrint(sys._getframe().f_code.co_name)
     fineness = 100 # xy轴的粒度
     XYMax=10
     scale = fineness/XYMax
@@ -84,7 +88,7 @@ def generateHeatmapPic(taskName,dataDict):
 
     Z=X*0+1.0
     Z=Zfromllvm(Z,dataDict,scale,fineness)
-    saveHeatmapDataForPaper(X,Y,Z,glv._get("excelOutPath")+"_data/"+taskName+'.HeatmapData')
+    # saveHeatmapDataForPaper(X,Y,Z,glv._get("excelOutPath")+"_data/"+taskName+'.HeatmapData')
     drawPlt(X,Y,Z,taskName)
     plt.savefig("./pictures/"+taskName+'.png')
     
@@ -100,7 +104,7 @@ def generateHeatmapPic(taskName,dataDict):
     Z=X*0+1.0
     Z=ZfromBaseline(Z,dataDict,scale,fineness)
     drawPlt(X,Y,Z,taskName+"_baseline")
-    saveHeatmapDataForPaper(X,Y,Z,glv._get("excelOutPath")+"_data/"+taskName+'.baselineHeatmapData')
+    # saveHeatmapDataForPaper(X,Y,Z,glv._get("excelOutPath")+"_data/"+taskName+'.baselineHeatmapData')
     plt.savefig("./pictures/"+taskName+'_baseline.png')
 
     matplotlib.use("pgf")
@@ -113,6 +117,7 @@ def generateHeatmapPic(taskName,dataDict):
     plt.savefig("./pictures/"+taskName+'_baseline.pgf')
 
     plt.close('all')
+    timeEndPrint(sys._getframe().f_code.co_name,beginTime)
 
 def saveHeatmapDataForPaper(X,Y,Z,filename):
     fw = open(filename, 'w')    #将要输出保存的文件地址
