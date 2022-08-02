@@ -12,13 +12,13 @@ from tsjPython.tsjCommonFunc import *
 from multiProcess import parallelCalculateKendallIndex
 
 def addData2Excel(wb,taskName,isFirstSheet,dataDict):
-    [llvmerror,baselineError,validBlockNum,validInstructionNum] = add2Excel(wb,taskName,isFirstSheet,dataDict)
+    [llvmerror,baselineError,osacaMaxError,osacaAvgError,validBlockNum,validInstructionNum] = add2Excel(wb,taskName,isFirstSheet,dataDict)
     if glv._get("KendallIndex")=="yes":
         [KendallIndex, baselineKendallIndex]=parallelCalculateKendallIndex(taskName,dataDict)
     elif glv._get("KendallIndex")=="no":
         KendallIndex=0
         baselineKendallIndex=0
-    excelGraphAdd(wb,taskName,llvmerror,baselineError,validBlockNum,validInstructionNum,KendallIndex, baselineKendallIndex)
+    excelGraphAdd(wb,taskName,llvmerror,baselineError,osacaMaxError,osacaAvgError,validBlockNum,validInstructionNum,KendallIndex, baselineKendallIndex)
 
 # https://blog.csdn.net/David_Dai_1108/article/details/78702032
 def readExcelSet(pageName, columnName):
@@ -96,13 +96,18 @@ def readDictFromExcel(taskName):
     return historyDict
 
 def add2Excel(wb,name,isFirstSheet,dataDict):
-    #unique_revBiblock,frequencyRevBiBlock,OSACAmaxCyclesRevBiBlock,OSACACPCyclesRevBiBlock,OSACALCDCyclesRevBiBlock,BhiveCyclesRevBiBlock,accuracyMax,accuracyCP,llvmmcaCyclesRevBiBlock,accuracyLLVM):
+    #unique_revBiblock,frequencyRevBiBlock,OSACA_CPLCDmax_CyclesRevBiBlock,OSACACPCyclesRevBiBlock,OSACALCDCyclesRevBiBlock,BhiveCyclesRevBiBlock,accuracyMax,accuracyCP,llvmmcaCyclesRevBiBlock,accuracyLLVM):
     # if isFirstSheet==1:
         # ws = wb.active # 找当前Sheet
         # ws.title = name
     wb.create_sheet(name)
     ws = wb[name]
-    ws.append(["num","block_binary" , "ARM64_assembly_code", "Num_of_instructions","block_frequency","block_frequency_percentage","LLVM-MCA_result", "Baseline","BHive", "accuracyLLVM", "accuracyBaseline","accuracyLLVM * block_frequency" ,"accuracyBaseline * block_frequency" ]) # 添加行
+    ws.append([ "num",                          "block_binary" ,                    "ARM64_assembly_code",  "Num_of_instructions",  "block_frequency",\
+                "block_frequency_percentage",   "LLVM-MCA_result",                  "Baseline",             "BHive",     \
+                "OSACA_CP"                      "OSACA_LCD",                        "OSACA_Max",            "OSACA_Avg",\
+                "accuracyLLVM",                 "accuracyBaseline",                 "accuracyOSACA_Max",     "accuracyOSACA_Avg",\
+                "accuracyLLVM * block_frequency" ,  "accuracyBaseline * block_frequency",\
+                "accuracyOSACA_Max * block_frequency" ,  "accuracyOSACA_Avg * block_frequency" ]) # 添加行
     ws.column_dimensions['B'].width = 80 # 修改列宽
     ws.column_dimensions['K'].width = 30 # 修改列宽
     ws.column_dimensions['L'].width = 40 # 修改列宽
@@ -115,8 +120,8 @@ def add2Excel(wb,name,isFirstSheet,dataDict):
     BhiveSkipNum=0
     totalAccuracyLLVM=0.0
     totalAccuracyLLVMBaseline=0.0
-    # totalaccuracyMax=0.0
-    # totalaccuracyCP=0.0
+    totalaccuracyMax=0.0
+    totalaccuracyAvg=0.0
     # totalOSACAavg=0.0
     
     for key, value in dataDict.dataDict.items():
@@ -139,14 +144,15 @@ def add2Excel(wb,name,isFirstSheet,dataDict):
         ic(len(tmp_block_binary_reverse))
         if accuracyLLVM[tmp_block_binary_reverse] != 0:
             # totalAccuracyLLVM+=frequencyRevBiBlock[tmp_block_binary_reverse]*accuracyLLVM[tmp_block_binary_reverse]
-            frequencyPercentage=frequencyRevBiBlock[tmp_block_binary_reverse]*1.0/validInstructionNum
-            totalAccuracyLLVM+=accuracyLLVM_MuliplyFrequency[tmp_block_binary_reverse]
-            totalAccuracyLLVMBaseline += accuracyBaseline_MuliplyFrequency[tmp_block_binary_reverse]
-            # totalaccuracyMax+=frequencyRevBiBlock[tmp_block_binary_reverse]*accuracyMax[tmp_block_binary_reverse]
+            frequencyPercentage         =   frequencyRevBiBlock[tmp_block_binary_reverse]*1.0/validInstructionNum
+            totalAccuracyLLVM           +=  accuracyLLVM_MuliplyFrequency[tmp_block_binary_reverse]
+            totalAccuracyLLVMBaseline   +=  accuracyBaseline_MuliplyFrequency[tmp_block_binary_reverse]
+            totalaccuracyMax            +=  frequencyRevBiBlock[tmp_block_binary_reverse]*accuracyMax[tmp_block_binary_reverse]
+            totalaccuracyAvg            +=  frequencyRevBiBlock[tmp_block_binary_reverse]*accuracyAvg[tmp_block_binary_reverse]
             # totalaccuracyCP+=frequencyRevBiBlock[tmp_block_binary_reverse]*accuracyCP[tmp_block_binary_reverse]
 
             # count=frequencyRevBiBlock[tmp_block_binary_reverse]
-            # OSACAMax=OSACAmaxCyclesRevBiBlock[tmp_block_binary_reverse]
+            # OSACAMax=OSACA_CPLCDmax_CyclesRevBiBlock[tmp_block_binary_reverse]
             # OSACACP=OSACACPCyclesRevBiBlock[tmp_block_binary_reverse]
             # realBHive=float(BhiveCyclesRevBiBlock[tmp_block_binary_reverse])
             # tmp=(OSACAMax+OSACACP)/2 * BHiveCount - realBHive
@@ -154,24 +160,25 @@ def add2Excel(wb,name,isFirstSheet,dataDict):
             # 会显得表格特别稀疏
             # ws.row_dimensions[lineNum+1].height = int((len(tmp_block_binary_reverse)+1)/8) * 13.5
 
-            ws.append(["{:5d} ".format(lineNum), 
-                tmp_block_binary_reverse,
-                tmpARMassembly,
-                int((len(tmp_block_binary_reverse)+1)/8),
-                frequencyRevBiBlock[tmp_block_binary_reverse],
-                '%.2f%%' % (frequencyPercentage * 100),
-                # OSACAmaxCyclesRevBiBlock[tmp_block_binary_reverse],
-                # OSACACPCyclesRevBiBlock[tmp_block_binary_reverse],
-                # OSACALCDCyclesRevBiBlock[tmp_block_binary_reverse],
-                llvmmcaCyclesRevBiBlock[tmp_block_binary_reverse],
-                BaselineCyclesRevBiBlock[tmp_block_binary_reverse],
-                BhiveCyclesRevBiBlock[tmp_block_binary_reverse],
+
+            ws.append(["{:5d} ".format(lineNum),        tmp_block_binary_reverse,                           tmpARMassembly,                                     \
+                int((len(tmp_block_binary_reverse)+1)/8),   frequencyRevBiBlock[tmp_block_binary_reverse],
+                '%.2f%%' % (frequencyPercentage * 100), llvmmcaCyclesRevBiBlock[tmp_block_binary_reverse],  BaselineCyclesRevBiBlock[tmp_block_binary_reverse], BhiveCyclesRevBiBlock[tmp_block_binary_reverse],
+                
+                OSACACPCyclesRevBiBlock[tmp_block_binary_reverse],OSACALCDCyclesRevBiBlock[tmp_block_binary_reverse],
+                OSACA_CPLCDmax_CyclesRevBiBlock[tmp_block_binary_reverse],OSACA_CPLCDavg_CyclesRevBiBlock[tmp_block_binary_reverse]
+                
                 accuracyLLVM[tmp_block_binary_reverse],
                 accuracyBaseline[tmp_block_binary_reverse],
+                accuracyMax[tmp_block_binary_reverse],
+                accuracyAvg[tmp_block_binary_reverse],
+
                 accuracyLLVM_MuliplyFrequency[tmp_block_binary_reverse],
-                accuracyBaseline_MuliplyFrequency[tmp_block_binary_reverse]]
-                # accuracyMax[tmp_block_binary_reverse],
-                # accuracyCP[tmp_block_binary_reverse]]
+                accuracyBaseline_MuliplyFrequency[tmp_block_binary_reverse],
+                frequencyRevBiBlock[tmp_block_binary_reverse]*accuracyMax[tmp_block_binary_reverse],
+                frequencyRevBiBlock[tmp_block_binary_reverse]*accuracyAvg[tmp_block_binary_reverse]   
+                ]
+                
                 )
 
             toFill=ws['F{}'.format(lineNum+1)]
@@ -189,7 +196,7 @@ def add2Excel(wb,name,isFirstSheet,dataDict):
                     toFill=ws['H{}'.format(lineNum+1)]
                     toFill.fill=PatternFill('solid', fgColor='ffeb9c') # 黄
 
-            toFill=ws['J{}'.format(lineNum+1)]
+            toFill=ws['L{}'.format(lineNum+1)]
             if accuracyLLVM[tmp_block_binary_reverse] > 1:
                 toFill.fill=PatternFill('solid', fgColor='FF0000') # 红
             elif accuracyLLVM[tmp_block_binary_reverse] > 0.5:
@@ -199,7 +206,7 @@ def add2Excel(wb,name,isFirstSheet,dataDict):
             elif accuracyLLVM[tmp_block_binary_reverse] > 0.1:
                 toFill.fill=PatternFill('solid', fgColor='FFFF99') # 浅黄
             
-            toFill=ws['K{}'.format(lineNum+1)]
+            toFill=ws['M{}'.format(lineNum+1)]
             if accuracyBaseline[tmp_block_binary_reverse] > 1:
                 toFill.fill=PatternFill('solid', fgColor='FF0000') # 红
             elif accuracyBaseline[tmp_block_binary_reverse] > 0.5:
@@ -209,40 +216,60 @@ def add2Excel(wb,name,isFirstSheet,dataDict):
             elif accuracyBaseline[tmp_block_binary_reverse] > 0.1:
                 toFill.fill=PatternFill('solid', fgColor='FFFF99') # 浅黄
 
+            toFill=ws['N{}'.format(lineNum+1)]
+            if accuracyMax[tmp_block_binary_reverse] > 1:
+                toFill.fill=PatternFill('solid', fgColor='FF0000') # 红
+            elif accuracyMax[tmp_block_binary_reverse] > 0.5:
+                toFill.fill=PatternFill('solid', fgColor='ffc7ce') # 浅红
+            elif accuracyMax[tmp_block_binary_reverse] > 0.25:
+                toFill.fill=PatternFill('solid', fgColor='FFFF00') # 黄
+            elif accuracyMax[tmp_block_binary_reverse] > 0.1:
+                toFill.fill=PatternFill('solid', fgColor='FFFF99') # 浅黄
+
+            toFill=ws['O{}'.format(lineNum+1)]
+            if accuracyAvg[tmp_block_binary_reverse] > 1:
+                toFill.fill=PatternFill('solid', fgColor='FF0000') # 红
+            elif accuracyAvg[tmp_block_binary_reverse] > 0.5:
+                toFill.fill=PatternFill('solid', fgColor='ffc7ce') # 浅红
+            elif accuracyAvg[tmp_block_binary_reverse] > 0.25:
+                toFill.fill=PatternFill('solid', fgColor='FFFF00') # 黄
+            elif accuracyAvg[tmp_block_binary_reverse] > 0.1:
+                toFill.fill=PatternFill('solid', fgColor='FFFF99') # 浅黄
+
 
         else:
             unvalidNum+=1
             # ws.row_dimensions[lineNum+1].height = int((len(tmp_block_binary_reverse)+1)/8) * 13.5
             frequencyPercentage=frequencyRevBiBlock[tmp_block_binary_reverse]*1.0/validInstructionNum
-            ws.append(["{:5d} ".format(lineNum), 
-                tmp_block_binary_reverse,
-                tmpARMassembly,
-                int((len(tmp_block_binary_reverse)+1)/8),
-                frequencyRevBiBlock[tmp_block_binary_reverse],
-                '%.2f%%' % (frequencyPercentage * 100),
-                # OSACAmaxCyclesRevBiBlock[tmp_block_binary_reverse],
-                # OSACACPCyclesRevBiBlock[tmp_block_binary_reverse],
-                # OSACALCDCyclesRevBiBlock[tmp_block_binary_reverse],
-                llvmmcaCyclesRevBiBlock[tmp_block_binary_reverse],
-                BaselineCyclesRevBiBlock[tmp_block_binary_reverse],
-                BhiveCyclesRevBiBlock[tmp_block_binary_reverse],
+            ws.append(["{:5d} ".format(lineNum),        tmp_block_binary_reverse,                           tmpARMassembly,                                     \
+                int((len(tmp_block_binary_reverse)+1)/8),   frequencyRevBiBlock[tmp_block_binary_reverse],
+                '%.2f%%' % (frequencyPercentage * 100), llvmmcaCyclesRevBiBlock[tmp_block_binary_reverse],  BaselineCyclesRevBiBlock[tmp_block_binary_reverse], BhiveCyclesRevBiBlock[tmp_block_binary_reverse],
+                
+                OSACACPCyclesRevBiBlock[tmp_block_binary_reverse],OSACALCDCyclesRevBiBlock[tmp_block_binary_reverse],
+                OSACA_CPLCDmax_CyclesRevBiBlock[tmp_block_binary_reverse],OSACA_CPLCDavg_CyclesRevBiBlock[tmp_block_binary_reverse]
+                
                 accuracyLLVM[tmp_block_binary_reverse],
                 accuracyBaseline[tmp_block_binary_reverse],
+                accuracyMax[tmp_block_binary_reverse],
+                accuracyCP[tmp_block_binary_reverse],
+
                 accuracyLLVM_MuliplyFrequency[tmp_block_binary_reverse],
                 accuracyBaseline_MuliplyFrequency[tmp_block_binary_reverse],
-                # accuracyMax[tmp_block_binary_reverse],
-                # accuracyCP[tmp_block_binary_reverse]]
+                frequencyRevBiBlock[tmp_block_binary_reverse]*accuracyMax[tmp_block_binary_reverse],
+                frequencyRevBiBlock[tmp_block_binary_reverse]*accuracyAvg[tmp_block_binary_reverse]   
                 "ops!"])
     ws.append(["validTotalBlockNum(allow duplicates)  {:d}".format(validInstructionNum),"llvmUnvalidNum {:d}".format(unvalidNum),"BhiveSkipNum {:d}".format(BhiveSkipNum)])
     if validInstructionNum==0:
         llvmerror=0
         baselineError=0
+        osacaMaxError=0
+        osacaAvgError=0
     else:
         llvmerror=totalAccuracyLLVM/validInstructionNum
         baselineError=totalAccuracyLLVMBaseline/validInstructionNum
-    # osacaerror=totalOSACAavg/validInstructionNum
-    # osacaerror = 0
-    return [llvmerror,baselineError,lineNum,validInstructionNum]
+        osacaMaxError=totalaccuracyMax/validInstructionNum
+        osacaAvgError=totalaccuracyAvg/validInstructionNum
+    return [llvmerror,baselineError,osacaMaxError,osacaAvgError,lineNum,validInstructionNum]
 
 def excelGraphInit():
     wb = Workbook()
@@ -257,12 +284,12 @@ def excelGraphInit():
     ws.column_dimensions['F'].width = 15 # 修改列宽
     ws.column_dimensions['G'].width = 15 # 修改列宽
     ws.column_dimensions['H'].width = 15 # 修改列宽
-    ws.append(["applications","LLVM-MCA_error","baseline_error",'误差比值','有效Block数','指令总数(包括重复的)',"KendallIndex", "baselineKendallIndex"])
+    ws.append(["applications","LLVM-MCA_error","baseline_error",'误差比值',"osacaMax_error","osacaAvg_error",'有效Block数','指令总数(包括重复的)',"KendallIndex", "baselineKendallIndex"])
     return wb
 
-def excelGraphAdd(wb,taskName,llvmerror,baselineError,validBlockNum,validInstructionNum,KendallIndex, baselineKendallIndex):
+def excelGraphAdd(wb,taskName,llvmerror,baselineError,osacaMaxError,osacaAvgError,validBlockNum,validInstructionNum,KendallIndex, baselineKendallIndex):
     ws = wb["Graph"]
-    ws.append([taskName,llvmerror,baselineError,0,validBlockNum,validInstructionNum,KendallIndex, baselineKendallIndex])
+    ws.append([taskName,llvmerror,baselineError,0,osacaMaxError,osacaAvgError,validBlockNum,validInstructionNum,KendallIndex, baselineKendallIndex])
     wb.save(glv._get("excelOutPath"))
 
 def excelGraphBuild(wb,processBeginTime):

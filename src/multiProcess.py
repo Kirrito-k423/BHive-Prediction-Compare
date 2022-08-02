@@ -34,7 +34,7 @@ class Process(mp.Process):
         return self._exception
 
 def paralleReadProcess(filename,sendPipe,rank, startFileLine,endFileLine, queueDict):
-    # unique_revBiblock_Queue,frequencyRevBiBlock_Queue,OSACAmaxCyclesRevBiBlock_Queue,OSACACPCyclesRevBiBlock_Queue,OSACALCDCyclesRevBiBlock_Queue,BhiveCyclesRevBiBlock_Queue,accuracyMax_Queue,accuracyCP_Queue,llvmmcaCyclesRevBiBlock_Queue,accuracyLLVM_Queue):
+    # unique_revBiblock_Queue,frequencyRevBiBlock_Queue,OSACA_CPLCDmax_CyclesRevBiBlock_Queue,OSACACPCyclesRevBiBlock_Queue,OSACALCDCyclesRevBiBlock_Queue,BhiveCyclesRevBiBlock_Queue,accuracyMax_Queue,accuracyCP_Queue,llvmmcaCyclesRevBiBlock_Queue,accuracyLLVM_Queue):
     # print("MPI Process Start {:2d} {}~{}".format(rank,startFileLine,endFileLine))
     fread=open(filename, 'r')
 
@@ -44,16 +44,21 @@ def paralleReadProcess(filename,sendPipe,rank, startFileLine,endFileLine, queueD
     frequencyRevBiBlock = defaultdict(int)
     llvmmcaCyclesRevBiBlock = defaultdict(int)
     BaselineCyclesRevBiBlock = defaultdict(int)
-    # OSACAmaxCyclesRevBiBlock = defaultdict(int)
-    # OSACACPCyclesRevBiBlock = defaultdict(int)
-    # OSACALCDCyclesRevBiBlock =  defaultdict(int)
+
+    OSACA_CPLCDmax_CyclesRevBiBlock = defaultdict(float)
+    OSACA_CPLCDavg_CyclesRevBiBlock = defaultdict(float)
+    OSACACPCyclesRevBiBlock = defaultdict(float)
+    OSACALCDCyclesRevBiBlock =  defaultdict(float)
+
     BhiveCyclesRevBiBlock = defaultdict(int)
     accuracyLLVM = defaultdict(float)
     accuracyLLVM_MuliplyFrequency = defaultdict(float)
     accuracyBaseline = defaultdict(float)
     accuracyBaseline_MuliplyFrequency = defaultdict(float)
-    # accuracyMax = defaultdict(float)
-    # accuracyCP = defaultdict(float)
+
+    accuracyMax = defaultdict(float)
+    accuracyAvg = defaultdict(float)
+    accuracyCP = defaultdict(float)
     # for line in tqdm(fread.readlines()[startFileLine:endFileLine],total=endFileLine-startFileLine,desc=str("{:2d}".format(rank))):
     i=1
     sendSkipNum=int((endFileLine-startFileLine)/100)+1
@@ -71,16 +76,19 @@ def paralleReadProcess(filename,sendPipe,rank, startFileLine,endFileLine, queueD
             BhiveCyclesRevBiBlock[block] = BHive(block,BHiveInputDelimiter(block))
             llvmmcaCyclesRevBiBlock[block] = LLVM_mca(block,capstone(capstoneInput(block)))
             BaselineCyclesRevBiBlock[block] = LLVM_mcaBaseline(block,capstone(capstoneInput(block)))
-            # OSACAInput=saveOSACAInput2File(capstoneList(capstoneInput(block)),rank)
-            # OSACAmaxCyclesRevBiBlock[block] = OSACA(password,OSACAInput,"max")
-            # OSACACPCyclesRevBiBlock[block] = OSACA(password,OSACAInput,"CP")
-            # OSACALCDCyclesRevBiBlock[block] = OSACA(password,OSACAInput,"LCD")
+
+            OSACAInput=saveOSACAInput2File(capstoneList(capstoneInput(block)),rank)
+            [OSACA_CPLCDmax_CyclesRevBiBlock[block], OSACA_CPLCDavg_CyclesRevBiBlock[block] ,\
+             OSACACPCyclesRevBiBlock[block],         OSACALCDCyclesRevBiBlock[block]] = OSACA(OSACAInput)
+
             accuracyLLVM[block]= calculateAccuracyLLVM(BhiveCyclesRevBiBlock[block],llvmmcaCyclesRevBiBlock[block])
             accuracyLLVM_MuliplyFrequency[block]=accuracyLLVM[block]* frequencyRevBiBlock[block]
             accuracyBaseline[block]= calculateAccuracyLLVM(BhiveCyclesRevBiBlock[block],BaselineCyclesRevBiBlock[block])
             accuracyBaseline_MuliplyFrequency[block]=accuracyBaseline[block]* frequencyRevBiBlock[block]
-            # accuracyMax[block]= calculateAccuracyOSACA(BhiveCyclesRevBiBlock[block],OSACAmaxCyclesRevBiBlock[block],rank)
-            # accuracyCP[block]= calculateAccuracyOSACA(BhiveCyclesRevBiBlock[block],OSACACPCyclesRevBiBlock[block],rank)
+
+            accuracyMax[block]= calculateAccuracyOSACA(BhiveCyclesRevBiBlock[block],OSACA_CPLCDmax_CyclesRevBiBlock[block],rank)
+            accuracyAvg[block]= calculateAccuracyOSACA(BhiveCyclesRevBiBlock[block],OSACA_CPLCDavg_CyclesRevBiBlock[block],rank)
+            accuracyCP[block]= calculateAccuracyOSACA(BhiveCyclesRevBiBlock[block],OSACACPCyclesRevBiBlock[block],rank)
     except Exception as e:
         sendPipe.send(e)
         errorPrint("error = {}".format(e))
@@ -90,16 +98,22 @@ def paralleReadProcess(filename,sendPipe,rank, startFileLine,endFileLine, queueD
     queueDict.get("frequencyRevBiBlock").put(frequencyRevBiBlock)
     queueDict.get("llvmmcaCyclesRevBiBlock").put(llvmmcaCyclesRevBiBlock)
     queueDict.get("BaselineCyclesRevBiBlock").put(BaselineCyclesRevBiBlock)
-    # queueDict.get("OSACAmaxCyclesRevBiBlock").put(OSACAmaxCyclesRevBiBlock)
-    # queueDict.get("OSACACPCyclesRevBiBlock").put(OSACACPCyclesRevBiBlock)
-    # queueDict.get("OSACALCDCyclesRevBiBlock").put(OSACALCDCyclesRevBiBlock)
+
+    queueDict.get("OSACA_CPLCDmax_CyclesRevBiBlock").put(OSACA_CPLCDmax_CyclesRevBiBlock)
+    queueDict.get("OSACA_CPLCDavg_CyclesRevBiBlock").put(OSACA_CPLCDavg_CyclesRevBiBlock)
+    queueDict.get("OSACACPCyclesRevBiBlock").put(OSACACPCyclesRevBiBlock)
+    queueDict.get("OSACALCDCyclesRevBiBlock").put(OSACALCDCyclesRevBiBlock)
+    
     queueDict.get("BhiveCyclesRevBiBlock").put(BhiveCyclesRevBiBlock)
     queueDict.get("accuracyLLVM").put(accuracyLLVM)
     queueDict.get("accuracyLLVM_MuliplyFrequency").put(accuracyLLVM_MuliplyFrequency)
     queueDict.get("accuracyBaseline").put(accuracyBaseline)
     queueDict.get("accuracyBaseline_MuliplyFrequency").put(accuracyBaseline_MuliplyFrequency)
-    # accuracyMax_Queue.put(accuracyMax)
-    # accuracyCP_Queue.put(accuracyCP)
+
+    queueDict.get("accuracyMax").put(accuracyMax)
+    queueDict.get("accuracyAvg").put(accuracyAvg)
+    queueDict.get("accuracyCP").put(accuracyCP)
+
     sendPipe.send(i+sendSkipNum)
     sendPipe.close()
     # print("MPI Process end {:2d} {}~{}".format(rank,startFileLine,endFileLine))
@@ -149,7 +163,7 @@ def mergeHistory2dataDict(historyDict,dataDict):
     return dataDict
 
 def parallelReadPartFile(taskName,filename, dataDict):
-    # unique_revBiblock,frequencyRevBiBlock,OSACAmaxCyclesRevBiBlock,OSACACPCyclesRevBiBlock,OSACALCDCyclesRevBiBlock,BhiveCyclesRevBiBlock,accuracyMax,accuracyCP,llvmmcaCyclesRevBiBlock,accuracyLLVM):
+    # unique_revBiblock,frequencyRevBiBlock,OSACA_CPLCDmax_CyclesRevBiBlock,OSACACPCyclesRevBiBlock,OSACALCDCyclesRevBiBlock,BhiveCyclesRevBiBlock,accuracyMax,accuracyCP,llvmmcaCyclesRevBiBlock,accuracyLLVM):
     num_file=fileLineNum(filename)
     ProcessNum=glv._get("ProcessNum")
 

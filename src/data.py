@@ -32,16 +32,18 @@ def dataDictInit():
     dataDict.set("frequencyRevBiBlock" , defaultdict(int))
     dataDict.set("llvmmcaCyclesRevBiBlock" , defaultdict(int))
     dataDict.set("BaselineCyclesRevBiBlock" , defaultdict(int))
-    # dataDict.set("OSACAmaxCyclesRevBiBlock" , defaultdict(int))
-    # dataDict.set("OSACACPCyclesRevBiBlock" , defaultdict(int))
-    # dataDict.set("OSACALCDCyclesRevBiBlock" , defaultdict(int))
+    dataDict.set("OSACA_CPLCDmax_CyclesRevBiBlock" , defaultdict(float))
+    dataDict.set("OSACA_CPLCDavg_CyclesRevBiBlock" , defaultdict(float))
+    dataDict.set("OSACACPCyclesRevBiBlock" , defaultdict(float))
+    dataDict.set("OSACALCDCyclesRevBiBlock" , defaultdict(float))
     dataDict.set("BhiveCyclesRevBiBlock" , defaultdict(int))
     dataDict.set("accuracyLLVM" , defaultdict(float))
     dataDict.set("accuracyLLVM_MuliplyFrequency" , defaultdict(float))
     dataDict.set("accuracyBaseline" , defaultdict(float))
     dataDict.set("accuracyBaseline_MuliplyFrequency" , defaultdict(float))
-    # dataDict.set("accuracyMax" , defaultdict(float))
-    # dataDict.set("accuracyCP" , defaultdict(float))
+    dataDict.set("accuracyMax" , defaultdict(float))
+    dataDict.set("accuracyAvg" , defaultdict(float))
+    dataDict.set("accuracyCP" , defaultdict(float))
     return dataDict
 
 def queueDictInit(dataDict):
@@ -67,7 +69,7 @@ def isExcelPageExisted(pageName):
         
 def readDictFromJson(taskName):
     historyDict = dataDictInit()
-    if glv._get("useBhiveHistoryData")=="no" and glv._get("useBaselineHistoryData")=="no" and glv._get("useLLVMHistoryData")=="no":
+    if glv._get("useBhiveHistoryData")=="no" and glv._get("useBaselineHistoryData")=="no" and glv._get("useLLVMHistoryData")=="no" and glv._get("useOSACAHistoryData")=="no":
         ic("hb hm lv is all NO!")
         glv._set("isPageExisted","no")
         return historyDict

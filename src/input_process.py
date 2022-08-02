@@ -71,8 +71,18 @@ def inputParameters():
     parser.add_argument(
         "-hb",
         "--historyBaseline",
-        help="is use history llvm-mca data",
+        help="is use history llvm-mca Baseline data",
         dest="useBaselineHistoryData",
+        type=str,
+        required=True,
+        choices=["yes", "no"],
+        default="yes",
+    )
+    parser.add_argument(
+        "-hO",
+        "--historyOSACA",
+        help="is use history OSACA data",
+        dest="useOSACAHistoryData",
         type=str,
         required=True,
         choices=["yes", "no"],
@@ -87,6 +97,7 @@ def inputParameters():
     glv._set("useLLVMHistoryData",args.useLLVMHistoryData)
     glv._set("KendallIndex",args.KendallIndex)
     glv._set("useBaselineHistoryData",args.useBaselineHistoryData)
+    glv._set("useOSACAHistoryData",args.useOSACAHistoryData)
     pPrint(glv.GLOBALS_DICT)
     passPrint("parameter BHiveCount is : %s" % args.BHiveCount)
     passPrint("parameter ProcessNum is : %s" % args.ProcessNum)
@@ -96,7 +107,8 @@ def inputParameters():
     passPrint("parameter useLLVMHistoryData is : %s " % args.useLLVMHistoryData)
     passPrint("parameter KendallIndex is : %s " % args.KendallIndex)
     passPrint("parameter useBaselineHistoryData is : %s " % args.useBaselineHistoryData)
-    yellowPrint("less timeout causes less or no output!!!")
+    passPrint("parameter useOSACAHistoryData is : %s " % args.useOSACAHistoryData)
+    yellowPrint("less timeout causes less or no Bhive output!!!")
     return args
 
 def isIceEnable(isYes):
