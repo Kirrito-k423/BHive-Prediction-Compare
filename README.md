@@ -40,6 +40,15 @@ mkdir build && cd build
 cmake -DLLVM_TARGETS_TO_BUILD="AArch64" -DCMAKE_BUILD_TYPE=Debug ../llvm
 make llvm-mca -j VERBOSE=1
 ```
+
+### 安装OSACA
+下载：https://github.com/qcjiang/OSACA，开发相关的branch在feature/tsv110，直接在github上fork这个仓库，之后有提交的话提pull request
+安装：
+```
+python setup.py build
+python setup.py install
+```
+
 ### python库
 ```
 pip install -r requirements.txt

@@ -1,3 +1,8 @@
+from capstone import *
+import global_variable as glv
+from terminal_command import TIMEOUT_COMMAND
+import re
+import pprint
 
 def OSACA(inputFile):
 
@@ -8,11 +13,12 @@ def OSACA(inputFile):
                     glv._get("historyDict").dataDict["OSACACPCyclesRevBiBlock"][block],\
                     glv._get("historyDict").dataDict["OSACALCDCyclesRevBiBlock"][block]]
 
-    command='python '+OSACAPath+' --arch TSV110 '+str(inputFile)
+    command=glv._get("OSACAPath")+' --arch TSV110 '+str(inputFile)
     ic(command)
     list=TIMEOUT_COMMAND(command,glv._get("timeout"))
     try:
         if list and len(list)>1:
+            ic("OSACA "+str(len(list)))
             lineNum=1
             while lineNum:
                 listObj=list[lineNum]
@@ -38,13 +44,12 @@ def OSACA(inputFile):
         else:
             return [-1,-1,-1,-1]
     except Exception as e:
-        print("osacaText:{}\n".format(list[resultLineNum]))
         pprint.pprint(list)
         raise e
     
 
 def saveOSACAInput2File(InputAsmList,rank):
-    writeFilename="{}/tmpOSACAfiles/{}.{}_OSACAInputTmpAsmBlockRank{}".format(taskfilePath,taskfilenameprefixWithoutPath,saveInfo,rank)
+    writeFilename="{}/tmpOSACAfiles/OSACAInputTmpAsmBlockRank{}".format(glv._get("taskfilePath"),rank)
     fwriteblockfreq = open(writeFilename, "w")
     for tmp_InputAsmList in InputAsmList:
         fwriteblockfreq.writelines(tmp_InputAsmList)
@@ -75,7 +80,7 @@ def calculateAccuracyOSACA(accurateCycles,predictionCycles,rank):
     predictionCycles=float(predictionCycles)
     if accurateCycles <= 0 or predictionCycles <= 0:
         # print(" rank{}-0".format(rank))
-        return 0
+        return -1
     else:
         # print(" rank{}-tsj2".format(rank))
         # print("{} {}".format(accurateCycles,predictionCycles))
