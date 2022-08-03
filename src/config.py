@@ -4,23 +4,10 @@ import time
 
 glv._init()
 
-glv._set("useBhiveHistoryData", "no") # 是否重用 历史文件里的Bhive数据
-glv._set("useLLVMHistoryData", "no") # 是否重用 历史文件里的llvm-mca Baseline数据
-glv._set("useBaselineHistoryData", "no") # 是否重用 历史文件里的llvm-mca Baseline数据
-glv._set("HistoryDataFile", "/home/shaojiemike/blockFrequency/Summary_BHiveCount5002022-07-23-20-04-14_tsj.xlsx") # for test
-# glv._set("HistoryDataFile", "/home/shaojiemike/blockFrequency/Summary_BHiveCount5002022-07-14-13-05-29_tsj.xlsx") # Full
+glv._set("HistoryDataFile", "/home/shaojiemike/blockFrequency/Summary_BHiveCount5002022-08-02-17-52-18_tsj.xlsx") # for test
 
 glv._set("taskfilePath", "/home/shaojiemike/blockFrequency") # 输入文件集合所在的目录
-# glv._set("taskList",{"tensorflow_test_5.log":"test"})
-# glv._set("taskList",{"tensorflow_test_5.log":"test"})
-# glv._set("taskList",{"tensorflow_test_100.log":"test"})
-# glv._set("taskList",{"test_insns_blockFrequency_skip_2.log":"test_insns"})
-# glv._set("taskList",{"Gzip_all_skip_2.log":"Gzip"})
-# glv._set("taskList",{"tensorflow_41Gdir_00all_skip_2.log":"Tensorflow"})
-# glv._set("taskList",{
-#             "tensorflow_test_100.log":"tensorflow_1",
-#             "tensorflow_test_5.log":"tensorflow_2",
-#             "tensorflow_test_3.log":"tensorfw_3"})
+
 glv._set("taskList", 
                 {        
                 "ffmpeg_useFileNum_1_skipNum_0.log":"ffmpeg",
@@ -48,7 +35,7 @@ glv._set("taskList",
                 "redis_r100000_n200000_N8452.log":"Redis_skip0",
                 "test_insns_blockFrequency_skip_2.log":"test_insns"}) # 输入文件名的前缀，和在excel里的名称
 
-glv._set("OSACAPath","/home/qcjiang/softwares/anaconda3/bin/osaca") # OSACA 的测量对比暂时不再支持
+glv._set("OSACAPath","/home/qcjiang/softwares/anaconda3/bin/osaca") 
 glv._set("LLVM_mcaPath","/home/shaojiemike/github/MyGithub/llvm-project/build/bin/llvm-mca")
 glv._set("LLVM_mcaBaselinePath","/home/shaojiemike/Download/llvm-project-llvmorg-13.0.0/build/bin/llvm-mca")
 glv._set("BHivePath","/home/shaojiemike/test/bhive-re/bhive-reg/bhive")

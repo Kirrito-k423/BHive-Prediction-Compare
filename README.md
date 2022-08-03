@@ -10,17 +10,10 @@ Reimplementation of the BHive profiler on ARMv7 kunpeng processor. The original 
 ![](https://shaojiemike.oss-cn-hangzhou.aliyuncs.com/img/20220712154020.png)
 
 该仓库属于流程图的淡紫色模块的实现。
-## 程序运行流程简述
-
-1. 对于每个汇编的log文件(基本块二进制，以及次数)
-2. readPartFile分别读取，并并行执行
-	1. 每个子进程负责自己的部分，运行BHive和llvm-mca的值，并进行比较，计算偏差。
-3. Reduce结果
-4. 写入Excel文件。
 
 ## 安装
 ### 安装Bhive
-位于 `./bhive-reg`下，`make`产生`bhive`可执行文件。
+代码位于 `./bhive-reg`下，`make`产生`bhive`可执行文件。
 
 安装完，测试如下：
 ```
@@ -34,117 +27,153 @@ Addr: 0x3ed0011e114
 Event num: 229
 ```
 ### 安装llvm-mca
-代码在https://github.com/qcjiang/llvm-project，有个tsv110的branch，直接在github上fork这个仓库，之后有提交的话提pull request
+优化后代码在https://github.com/qcjiang/llvm-project，有个tsv110的branch，直接在github上fork这个仓库，执行如下代码安装。(基准代码下载官方llvm13.0.0版本，安装方法相同)
 ```
 mkdir build && cd build
 cmake -DLLVM_TARGETS_TO_BUILD="AArch64" -DCMAKE_BUILD_TYPE=Debug ../llvm
 make llvm-mca -j VERBOSE=1
 ```
+安装完，测试如下：
+```
+> echo "neg     x1, x20
+cmp     x0, x19
+" | ~/github/MyGithub/llvm-project/build/bin/llvm-mca --timeline -iterations=500 |head -10
+Iterations:        500
+Instructions:      1000
+Total Cycles:      337
+Total uOps:        1000
+
+Dispatch Width:    4
+uOps Per Cycle:    2.97
+IPC:               2.97
+Block RThroughput: 0.5
+```
 
 ### 安装OSACA
-下载：https://github.com/qcjiang/OSACA，开发相关的branch在feature/tsv110，直接在github上fork这个仓库，之后有提交的话提pull request
-安装：
+下载：https://github.com/qcjiang/OSACA，开发相关的branch在feature/tsv110，直接在github上fork这个仓库，执行如下代码安装。
 ```
 python setup.py build
 python setup.py install
 ```
+安装完，测试如下：
+```
+> cat test.s
+add     x1, x0, #0x8b0
+sub     w28, w21, #0x41
+ldur    w0, [x11, #-4]
 
-### python库
+> osaca --arch TSV110 ./test.s
+Open Source Architecture Code Analyzer (OSACA) - 0.4.8
+Analyzed file:      ./test.s
+Architecture:       TSV110
+Timestamp:          2022-08-03 08:20:03
+
+
+ P - Throughput of LOAD operation can be hidden behind a past or future STORE instruction
+ * - Instruction micro-ops not bound to a port
+ X - No throughput/latency information for this instruction in data file
+
+
+Combined Analysis Report
+------------------------
+                          Port pressure in cycles
+     |  0   |  1   |  2   |  3   |  4   |  5   |  6   |  7   ||  CP  | LCD  |
+-----------------------------------------------------------------------------
+   1 | 0.33 | 0.33 | 0.33 |      |      |      |      |      ||      |      |   add x1, x0, #0x8b0
+   2 | 0.33 | 0.33 | 0.33 |      |      |      |      |      ||      |      |   sub     w28, w21, #0x41
+   3 |      |      |      |      |      |      | 0.50 | 0.50 ||  4.0 |      |   ldur w0, [x11, #-4]
+
+       0.67   0.67   0.67                        0.50   0.50     4.0    0.0
+```
+### 安装python库
 ```
 pip install -r requirements.txt
 ```
 
 ## 运行
-### 运行前必须修改的选项
-执行文件等信息在`./src/config.py`下。(必须修改Bhive，llvm-mca可执行文件路径)
+### 运行前必须修改config选项
+执行文件路径等信息在`./src/config.py`下。(必须修改Bhive，llvm-mca,OSACA可执行文件路径为上面的安装路径)。
+
+
+| 参数		|说明	|
+|---		|---	|
+|HistoryDataFile	    |复用已生成数据的excel路径(下一节交代具体使用方法)
+|taskfilePath		      |输入文件集合所在的目录
+|taskList			        |输入文件名 及其 对应的excel任务名
+|OSACAPath			      |OSACA可执行文件路径
+|LLVM_mcaPath		      |优化后llvm-mca可执行文件路径
+|LLVM_mcaBaselinePath|基准llvm-mca可执行文件路径
+|BHivePath            |Bhive可执行文件路径
+|BHiveCount           |Bhive指令展开次数
+|ProcessNum           |并行核数
+|failedRetryTimes     |调用Bhive,llvm_mca,OSACA返回错误值时，重试次数
+|failedSleepTime      |重试的间隔时间(单位为秒，主要防止Bhive由于资源占用返回错误值)
+|timeout              |调用Bhive,llvm_mca,OSACA超时kill的时限(单位为秒)
+|excelOutPath         |输出excel路径(默认在输入目录下)
+|debug                |是否打印debug信息(除非是单进程，小样例，否则不建议开启)
+
 
 ### 查看选项
+python命令的选项优先级高于`config.py`
 ```
 > python3 ./src/main.py -h
-You can change all parameters in config.py except enter some parameters
-
-usage: main.py [-h] [-b BHIVECOUNT] [-p PROCESSNUM] [-t TIMEOUT] [-d {yes,no}]
+In addition to entering some parameters, you can also modify all parameters in config.py
+usage: main.py [-h] [-b BHIVECOUNT] [-p PROCESSNUM] [-t TIMEOUT] [-d {yes,no}] -hB {yes,no} -hl {yes,no} -k {yes,no} -hb {yes,no} -hO {yes,no} [-pu {yes,no}]
 
 please enter some parameters
 
 optional arguments:
   -h, --help            show this help message and exit
   -b BHIVECOUNT, --BHiveCount BHIVECOUNT
-                        BHive Count Num (maybe useless depends on bin/bhive use
+                        Bhive执行时代码展开次数
   -p PROCESSNUM, --ProcessNum PROCESSNUM
-                        multiple Process Numbers
+                        并行核数
   -t TIMEOUT, --timeout TIMEOUT
-                        sub program interrupt time(eg. llvm-mca, bhive, OSACA. less time causes less useful output
+                        子进程超时的时限(单位秒)
   -d {yes,no}, --debug {yes,no}
-                        is print debug informations
+                        是否打印Debug信息
+  -hB {yes,no}, --historyBhive {yes,no}
+                        是否使用HistoryDataFile的excel里的Bhive历史数据
+  -hl {yes,no}, --historyLLVM {yes,no}
+                        是否使用HistoryDataFile的excel里的llvm-mca历史数据
+  -k {yes,no}, --KendallIndex {yes,no}
+                        是否计算KendallIndex
+  -hb {yes,no}, --historyBaseline {yes,no}
+                        是否使用HistoryDataFile的excel里的llvm-mca基准历史数据 
+  -hO {yes,no}, --historyOSACA {yes,no}
+                        是否使用HistoryDataFile的excel里的OSACA历史数据 
+  -pu {yes,no}, --printUnsupportedBlock {yes,no}
+                        excel文件是否保留llvm-mca，Bhive或者OSACA不支持的基本块
 ```
 ### 推荐运行
+第一次运行，需要计算Bhive,llvm-mca,OSACA的所有数据
 ```
-python3 ./src/main.py -b 500 -p 20 -d no
+python3 ./src/main.py -p 30 -hB no -hb no -hO no -hl no -k no -d no
+```
+假如修改了llvm-mca,想重新计算该部分，重用其余部分的数据
+```
+python3 ./src/main.py -p 30 -hB yes -hb yes -hO yes -hl no -k no -d no
 ```
 ## features
 
 1. base on armV7
 2. compare OSACA, LLVM-mca, Bhive
-3. multiProcess
+3. multiProcess progress bar
 4. result in excel file with graph
 5. icecream for debug
-	* 优雅打印对象：函数名，结构体
-	* 打印行号和栈（没用输入时
-	* 允许嵌套（会将输入传递到输出
-	* 允许带颜色`ic.format(*args)`获得ic打印的文本
-	* debug `ic.disable()`and `ic.enable()`
-	* 允许统一前缀 `ic.configureOutput(prefix='Debug | ')`
-	* 不用每个文件import
-	```
-	from icecream import install
-	install()
 
-	ic.configureOutput(prefix='Debug -> ', outputFunction=yellowPrint)
-	```
-## To do
-### bugs（已经修复）
+## 其余补充说明
 
-<details>
+### 关于运行时间估计
 
-<summary>python的子程序实现有问题，运行中，会有bhive-reg遗留下来（多达20个，需要按照下面手动kill，这也是核数建议为总核数的1/3的原因</summary>
+1. 将我们提供的输入文件全部从头运行一遍大约 20~30h. 其中Bhive占据了主要时间(由于Bhive是实际运行，并行的资源占用，对其准确率有影响，为此调整了并行的密度)
+2. 只重新计算llvm-mca，重用其余数据，运行一遍时长2~3h。
 
-### check process create time
-```
-ps -eo pid,lstart,cmd |grep bhive
-date
-```
-### kill all process by name
-```
- sudo ps -ef | grep 'bhive-re' | grep -v grep | awk '{print $2}' | sudo xargs -r kill -9
-```
+### 关于数据重用的实现中间文件
 
-### 以为的原因
+虽然excel存储了所需的数据，但是依次读取速度太慢了。实际数据以JSON格式存储在输出excel文件名添加`_data`后缀的文件夹下。
 
-subProcess.pool 返回程序状态的时候，除了运行和结束状态，还有休眠等其他状态。也就是程序在发射之后并不是直接进入运行状态的。判断程序是否超时不能通过判断是否运行，因为一开始while循环进不去
-```
-while process.poll() is None:
-```
-而应该是判断是否正常结束(208是BHive结束返回值，不同程序不同)
-```
-while process.poll() != 208:
-```
-### 继续分析
-实际debug还是有
-![](https://shaojiemike.oss-cn-hangzhou.aliyuncs.com/img/20220625173740.png)
+### 关于OSACA中间文件
 
-在debug输出里没有这些pid
+在输入目录下会生成`tmpOSACAfiles`文件夹存储OSACA所需的临时汇编文件
 
-check了，输出的个数是符合的。
-
-不懂了，我都没调用，这僵尸进程哪里来的？除非是BHive产生的。
-
-### 实际原因
-调用的Bhive会产生子进程，原本的python实现不能杀死子进程的子进程。需要改用杀死进程组的实现
-
-### 杀死进程组
-
-![](https://shaojiemike.oss-cn-hangzhou.aliyuncs.com/img/20220625185611.png)
-
-可能设定是timeout是20秒，但是htop程序运行了2分钟也没有kill。这是正常的，因为主程序挤占资源导致挂起了，导致无法及时判断和kill
-</details>

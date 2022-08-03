@@ -11,28 +11,28 @@ def inputParameters():
     parser.add_argument(
         "-b",
         "--BHiveCount",
-        help="BHive Count Num (maybe useless depends on bin/bhive use",
+        help="Bhive执行时代码展开次数 / BHive Count Num (maybe useless depends on bin/bhive use)",
         dest="BHiveCount",
         type=int, default="500"
     )
     parser.add_argument(
         "-p",
         "--ProcessNum",
-        help="multiple Process Numbers",
+        help="并行核数 / multiple Process Numbers",
         dest="ProcessNum",
         type=int, default="20"
     )
     parser.add_argument(
         "-t",
         "--timeout",
-        help="sub program interrupt time(eg. llvm-mca, bhive, OSACA. less time causes less useful output",
+        help="子进程超时的时限(单位秒) sub program interrupt time(eg. llvm-mca, bhive, OSACA. less time causes less useful output",
         dest="timeout",
         type=int, default="10"
     )
     parser.add_argument(
         "-d",
         "--debug",
-        help="is print debug informations",
+        help="是否打印Debug信息 is print debug informations",
         dest="debug",
         type=str,
         choices=["yes", "no"],
@@ -41,7 +41,7 @@ def inputParameters():
     parser.add_argument(
         "-hB",
         "--historyBhive",
-        help="is use history Bhive data",
+        help="是否使用HistoryDataFile的excel里的Bhive历史数据 is use history Bhive data",
         dest="useBhiveHistoryData",
         type=str,
         required=True,
@@ -51,7 +51,7 @@ def inputParameters():
     parser.add_argument(
         "-hl",
         "--historyLLVM",
-        help="is use history llvm-mca data",
+        help="是否使用HistoryDataFile的excel里的llvm-mca历史数据 is use history llvm-mca data",
         dest="useLLVMHistoryData",
         type=str,
         required=True,
@@ -71,7 +71,7 @@ def inputParameters():
     parser.add_argument(
         "-hb",
         "--historyBaseline",
-        help="is use history llvm-mca Baseline data",
+        help="是否使用HistoryDataFile的excel里的llvm-mca基准历史数据 is use history llvm-mca Baseline data",
         dest="useBaselineHistoryData",
         type=str,
         required=True,
@@ -81,7 +81,7 @@ def inputParameters():
     parser.add_argument(
         "-hO",
         "--historyOSACA",
-        help="is use history OSACA data",
+        help="是否使用HistoryDataFile的excel里的OSACA历史数据 is use history OSACA data",
         dest="useOSACAHistoryData",
         type=str,
         required=True,
@@ -91,7 +91,7 @@ def inputParameters():
     parser.add_argument(
         "-pu",
         "--printUnsupportedBlock",
-        help="is print Unsupported Block to excel",
+        help="excel文件是否保留llvm-mca，Bhive或者OSACA不支持的基本块 is print Unsupported Block to excel",
         dest="printUnsupportedBlock",
         type=str,
         choices=["yes", "no"],
