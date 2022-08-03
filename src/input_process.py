@@ -88,6 +88,15 @@ def inputParameters():
         choices=["yes", "no"],
         default="yes",
     )
+    parser.add_argument(
+        "-pu",
+        "--printUnsupportedBlock",
+        help="is print Unsupported Block to excel",
+        dest="printUnsupportedBlock",
+        type=str,
+        choices=["yes", "no"],
+        default="no",
+    )
     args = parser.parse_args()
     glv._set("BHiveCount",args.BHiveCount)
     glv._set("ProcessNum",args.ProcessNum)
@@ -98,6 +107,7 @@ def inputParameters():
     glv._set("KendallIndex",args.KendallIndex)
     glv._set("useBaselineHistoryData",args.useBaselineHistoryData)
     glv._set("useOSACAHistoryData",args.useOSACAHistoryData)
+    glv._set("printUnsupportedBlock",args.printUnsupportedBlock)
     pPrint(glv.GLOBALS_DICT)
     passPrint("parameter BHiveCount is : %s" % args.BHiveCount)
     passPrint("parameter ProcessNum is : %s" % args.ProcessNum)
@@ -108,6 +118,7 @@ def inputParameters():
     passPrint("parameter KendallIndex is : %s " % args.KendallIndex)
     passPrint("parameter useBaselineHistoryData is : %s " % args.useBaselineHistoryData)
     passPrint("parameter useOSACAHistoryData is : %s " % args.useOSACAHistoryData)
+    passPrint("parameter printUnsupportedBlock is : %s " % args.printUnsupportedBlock)
     yellowPrint("less timeout causes less or no Bhive output!!!")
     return args
 

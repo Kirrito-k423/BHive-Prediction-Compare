@@ -96,11 +96,18 @@ def readDictFromExcel(taskName):
     colorPrint("wait {} to finish read excel at: {}".format(time2String(int(time.time()-processBeginTime)),time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())),"magenta")
     return historyDict
 
+def colorAccuracyEntry(columnLetter, accuracyEntry, tmp_block_binary_reverse ,lineNum, ws):
+    toFill=ws['{}{}'.format(columnLetter, lineNum+1)]
+    if accuracyEntry[tmp_block_binary_reverse] > 1:
+        toFill.fill=PatternFill('solid', fgColor='FF0000') # 红
+    elif accuracyEntry[tmp_block_binary_reverse] > 0.5:
+        toFill.fill=PatternFill('solid', fgColor='ffc7ce') # 浅红
+    elif accuracyEntry[tmp_block_binary_reverse] > 0.25:
+        toFill.fill=PatternFill('solid', fgColor='FFFF00') # 黄
+    elif accuracyEntry[tmp_block_binary_reverse] > 0.1:
+        toFill.fill=PatternFill('solid', fgColor='FFFF99') # 浅黄
+
 def add2Excel(wb,name,isFirstSheet,dataDict):
-    #unique_revBiblock,frequencyRevBiBlock,OSACA_CPLCDmax_CyclesRevBiBlock,OSACACPCyclesRevBiBlock,OSACALCDCyclesRevBiBlock,BhiveCyclesRevBiBlock,accuracyMax,accuracyCP,llvmmcaCyclesRevBiBlock,accuracyLLVM):
-    # if isFirstSheet==1:
-        # ws = wb.active # 找当前Sheet
-        # ws.title = name
     wb.create_sheet(name)
     ws = wb[name]
     ws.append([ "num",                          "block_binary" ,                    "ARM64_assembly_code",  "Num_of_instructions",  "block_frequency",\
@@ -143,30 +150,18 @@ def add2Excel(wb,name,isFirstSheet,dataDict):
         if BhiveCyclesRevBiBlock[tmp_block_binary_reverse]==-1:
             BhiveSkipNum+=1
             continue
-        lineNum+=1
         tmpARMassembly=capstone(capstoneInput(tmp_block_binary_reverse))
         ic(len(tmp_block_binary_reverse))
         if accuracyLLVM[tmp_block_binary_reverse] >= 0 and \
                 accuracyMax[tmp_block_binary_reverse] >=0 and \
                 accuracyAvg[tmp_block_binary_reverse] >=0:
+            lineNum+=1
             validBlockNum += 1
-            # totalAccuracyLLVM+=frequencyRevBiBlock[tmp_block_binary_reverse]*accuracyLLVM[tmp_block_binary_reverse]
             frequencyPercentage         =   frequencyRevBiBlock[tmp_block_binary_reverse]*1.0/validInstructionNum
             totalAccuracyLLVM           +=  accuracyLLVM_MuliplyFrequency[tmp_block_binary_reverse]
             totalAccuracyLLVMBaseline   +=  accuracyBaseline_MuliplyFrequency[tmp_block_binary_reverse]
             totalaccuracyMax            +=  frequencyRevBiBlock[tmp_block_binary_reverse]*accuracyMax[tmp_block_binary_reverse]
             totalaccuracyAvg            +=  frequencyRevBiBlock[tmp_block_binary_reverse]*accuracyAvg[tmp_block_binary_reverse]
-            # totalaccuracyCP+=frequencyRevBiBlock[tmp_block_binary_reverse]*accuracyCP[tmp_block_binary_reverse]
-
-            # count=frequencyRevBiBlock[tmp_block_binary_reverse]
-            # OSACAMax=OSACA_CPLCDmax_CyclesRevBiBlock[tmp_block_binary_reverse]
-            # OSACACP=OSACACPCyclesRevBiBlock[tmp_block_binary_reverse]
-            # realBHive=float(BhiveCyclesRevBiBlock[tmp_block_binary_reverse])
-            # tmp=(OSACAMax+OSACACP)/2 * BHiveCount - realBHive
-            # totalOSACAavg+=abs(tmp)/realBHive * count
-            # 会显得表格特别稀疏
-            # ws.row_dimensions[lineNum+1].height = int((len(tmp_block_binary_reverse)+1)/8) * 13.5
-
 
             ws.append(["{:5d} ".format(lineNum),        tmp_block_binary_reverse,                           tmpARMassembly,                                     \
                 int((len(tmp_block_binary_reverse)+1)/8),   frequencyRevBiBlock[tmp_block_binary_reverse],
@@ -203,70 +198,34 @@ def add2Excel(wb,name,isFirstSheet,dataDict):
                     toFill=ws['H{}'.format(lineNum+1)]
                     toFill.fill=PatternFill('solid', fgColor='ffeb9c') # 黄
 
-            toFill=ws['N{}'.format(lineNum+1)]
-            if accuracyLLVM[tmp_block_binary_reverse] > 1:
-                toFill.fill=PatternFill('solid', fgColor='FF0000') # 红
-            elif accuracyLLVM[tmp_block_binary_reverse] > 0.5:
-                toFill.fill=PatternFill('solid', fgColor='ffc7ce') # 浅红
-            elif accuracyLLVM[tmp_block_binary_reverse] > 0.25:
-                toFill.fill=PatternFill('solid', fgColor='FFFF00') # 黄
-            elif accuracyLLVM[tmp_block_binary_reverse] > 0.1:
-                toFill.fill=PatternFill('solid', fgColor='FFFF99') # 浅黄
-            
-            toFill=ws['O{}'.format(lineNum+1)]
-            if accuracyBaseline[tmp_block_binary_reverse] > 1:
-                toFill.fill=PatternFill('solid', fgColor='FF0000') # 红
-            elif accuracyBaseline[tmp_block_binary_reverse] > 0.5:
-                toFill.fill=PatternFill('solid', fgColor='ffc7ce') # 浅红
-            elif accuracyBaseline[tmp_block_binary_reverse] > 0.25:
-                toFill.fill=PatternFill('solid', fgColor='FFFF00') # 黄
-            elif accuracyBaseline[tmp_block_binary_reverse] > 0.1:
-                toFill.fill=PatternFill('solid', fgColor='FFFF99') # 浅黄
-
-            toFill=ws['P{}'.format(lineNum+1)]
-            if accuracyMax[tmp_block_binary_reverse] > 1:
-                toFill.fill=PatternFill('solid', fgColor='FF0000') # 红
-            elif accuracyMax[tmp_block_binary_reverse] > 0.5:
-                toFill.fill=PatternFill('solid', fgColor='ffc7ce') # 浅红
-            elif accuracyMax[tmp_block_binary_reverse] > 0.25:
-                toFill.fill=PatternFill('solid', fgColor='FFFF00') # 黄
-            elif accuracyMax[tmp_block_binary_reverse] > 0.1:
-                toFill.fill=PatternFill('solid', fgColor='FFFF99') # 浅黄
-
-            toFill=ws['Q{}'.format(lineNum+1)]
-            if accuracyAvg[tmp_block_binary_reverse] > 1:
-                toFill.fill=PatternFill('solid', fgColor='FF0000') # 红
-            elif accuracyAvg[tmp_block_binary_reverse] > 0.5:
-                toFill.fill=PatternFill('solid', fgColor='ffc7ce') # 浅红
-            elif accuracyAvg[tmp_block_binary_reverse] > 0.25:
-                toFill.fill=PatternFill('solid', fgColor='FFFF00') # 黄
-            elif accuracyAvg[tmp_block_binary_reverse] > 0.1:
-                toFill.fill=PatternFill('solid', fgColor='FFFF99') # 浅黄
-
-
+            colorAccuracyEntry('N', accuracyLLVM, tmp_block_binary_reverse ,lineNum, ws)
+            colorAccuracyEntry('O', accuracyBaseline, tmp_block_binary_reverse ,lineNum, ws)
+            colorAccuracyEntry('P', accuracyMax, tmp_block_binary_reverse ,lineNum, ws)
+            colorAccuracyEntry('Q', accuracyAvg, tmp_block_binary_reverse ,lineNum, ws)
         else:
             unvalidNum+=1
-            # ws.row_dimensions[lineNum+1].height = int((len(tmp_block_binary_reverse)+1)/8) * 13.5
-            frequencyPercentage=frequencyRevBiBlock[tmp_block_binary_reverse]*1.0/validInstructionNum
-            ws.append(["{:5d} ".format(lineNum),        tmp_block_binary_reverse                            ,tmpARMassembly,                                     \
-                int((len(tmp_block_binary_reverse)+1)/8),   frequencyRevBiBlock[tmp_block_binary_reverse],
-                "not count", llvmmcaCyclesRevBiBlock[tmp_block_binary_reverse],  BaselineCyclesRevBiBlock[tmp_block_binary_reverse], \
-                BhiveCyclesRevBiBlock[tmp_block_binary_reverse],
-                
-                OSACACPCyclesRevBiBlock[tmp_block_binary_reverse],OSACALCDCyclesRevBiBlock[tmp_block_binary_reverse],
-                OSACA_CPLCDmax_CyclesRevBiBlock[tmp_block_binary_reverse],OSACA_CPLCDavg_CyclesRevBiBlock[tmp_block_binary_reverse],
-                
-                accuracyLLVM[tmp_block_binary_reverse],
-                accuracyBaseline[tmp_block_binary_reverse],
-                accuracyMax[tmp_block_binary_reverse],
-                accuracyCP[tmp_block_binary_reverse],
+            if glv._get("printUnsupportedBlock")=='yes':
+                lineNum+=1
+                frequencyPercentage=frequencyRevBiBlock[tmp_block_binary_reverse]*1.0/validInstructionNum
+                ws.append(["{:5d} ".format(lineNum),        tmp_block_binary_reverse                            ,tmpARMassembly,                                     \
+                    int((len(tmp_block_binary_reverse)+1)/8),   frequencyRevBiBlock[tmp_block_binary_reverse],
+                    "not count", llvmmcaCyclesRevBiBlock[tmp_block_binary_reverse],  BaselineCyclesRevBiBlock[tmp_block_binary_reverse], \
+                    BhiveCyclesRevBiBlock[tmp_block_binary_reverse],
+                    
+                    OSACACPCyclesRevBiBlock[tmp_block_binary_reverse],OSACALCDCyclesRevBiBlock[tmp_block_binary_reverse],
+                    OSACA_CPLCDmax_CyclesRevBiBlock[tmp_block_binary_reverse],OSACA_CPLCDavg_CyclesRevBiBlock[tmp_block_binary_reverse],
+                    
+                    accuracyLLVM[tmp_block_binary_reverse],
+                    accuracyBaseline[tmp_block_binary_reverse],
+                    accuracyMax[tmp_block_binary_reverse],
+                    accuracyCP[tmp_block_binary_reverse],
 
-                accuracyLLVM_MuliplyFrequency[tmp_block_binary_reverse],
-                accuracyBaseline_MuliplyFrequency[tmp_block_binary_reverse],
-                frequencyRevBiBlock[tmp_block_binary_reverse]*accuracyMax[tmp_block_binary_reverse],
-                frequencyRevBiBlock[tmp_block_binary_reverse]*accuracyAvg[tmp_block_binary_reverse],   
-                "ops!"])
-    ws.append(["validTotalBlockNum(allow duplicates)  {:d}".format(validInstructionNum),"llvmUnvalidNum {:d}".format(unvalidNum),"BhiveSkipNum {:d}".format(BhiveSkipNum)])
+                    accuracyLLVM_MuliplyFrequency[tmp_block_binary_reverse],
+                    accuracyBaseline_MuliplyFrequency[tmp_block_binary_reverse],
+                    frequencyRevBiBlock[tmp_block_binary_reverse]*accuracyMax[tmp_block_binary_reverse],
+                    frequencyRevBiBlock[tmp_block_binary_reverse]*accuracyAvg[tmp_block_binary_reverse],   
+                    "ops!"])
+    ws.append(["validTotalBlockNum(allow duplicates)  {:d}".format(validInstructionNum),"llvmOSACAUnvalidNum {:d}".format(unvalidNum),"BhiveSkipNum {:d}".format(BhiveSkipNum)])
     if validInstructionNum==0:
         llvmerror=0
         baselineError=0
