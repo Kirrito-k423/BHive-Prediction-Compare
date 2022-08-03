@@ -4,29 +4,6 @@ import global_variable as glv
 import re
 import time
 
-# def checkBHiveResultStable(password,input,showinput,trytime):
-#     global BHiveCount
-#     order=0 
-#     if trytime==0:
-#         order=order+1
-#     elif trytime>5:
-#         return -1
-#     sys.stdout.flush()
-#     command=BHivePath+' '+input
-#     list=TIMEOUT_COMMAND(command,glv._get("timeout"))
-    
-#     if list is None or len(list)==0:
-#         regexResult=None
-#     else:
-#         regexResult=re.search("Event num: ([0-9]*)",list[-1])
-#         # if not regexResult:
-#         #     regexResult=re.search("Event num: ([0-9]*)",list[-2])
-#     if regexResult:
-#         resultCycle=regexResult.group(1)
-#         return resultCycle
-#     else:
-#         return checkBHiveResultStable(password,input,showinput,trytime+1)
-
 def tryNtimes(func, RetryTime ,args):
     for i in range(RetryTime):
         returnValue = eval(func)(args)
@@ -45,8 +22,7 @@ def BHiveResultStable(input):
         returnResult=tryNtimes("BHiveCore",glv._get("failedRetryTimes"),input)
         tryTimes += 1
     return firstResult
-# ,BHiveInputDel0xSpace(block),0
-# ,showinput,trytime
+
 def BHive(block,input):
     if glv._get("useBhiveHistoryData")=="yes" and glv._get("isPageExisted")=="yes":
         if block in glv._get("historyDict").dataDict["unique_revBiblock"]:
@@ -57,22 +33,15 @@ def BHiveCore(input):
     sys.stdout.flush()
     command=glv._get("BHivePath")+' '+input+" "+str(glv._get("BHiveCount"))
     list=TIMEOUT_COMMAND(command,glv._get("timeout"))
-    # ic(list)
+    ic(list)
 
     if list is None or len(list)==0:
         regexResult=None
     else:
         regexResult=re.search("Event num: ([0-9]*)",list[-1])
-        # if not regexResult:
-        #     regexResult=re.search("Event num: ([0-9]*)",list[-2])
     if regexResult:
         resultCycle=regexResult.group(1)
         return resultCycle
-	#checkCycle=checkBHiveResultStable(password,input,showinput,0)
-        #if arroundPercent(5,resultCycle,checkCycle):
-        #    return resultCycle
-        #else:
-        #    return BHive(password,input,showinput,trytime+1)   
     return -1
 
 def BHiveInput(block):

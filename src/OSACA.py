@@ -75,15 +75,10 @@ def capstoneInput(block):
 
 
 def calculateAccuracyOSACA(accurateCycles,predictionCycles,rank):
-    # print(" rank{}-tsj".format(rank))
     accurateCycles=float(accurateCycles)
     predictionCycles=float(predictionCycles)
     if accurateCycles <= 0 or predictionCycles <= 0:
-        # print(" rank{}-0".format(rank))
         return -1
     else:
-        # print(" rank{}-tsj2".format(rank))
-        # print("{} {}".format(accurateCycles,predictionCycles))
         gap=abs(glv._get("BHiveCount")*predictionCycles-accurateCycles)
-        # print(" rank{}-{}".format(rank,int(gap)/int(accurateCycles)))
         return gap/accurateCycles # accuracy variable is error

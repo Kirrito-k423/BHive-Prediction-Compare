@@ -20,7 +20,8 @@ def TIMEOUT_COMMAND(command, timeout=10):
     start = datetime.datetime.now()
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,encoding="utf-8",preexec_fn=os.setsid) #让 Popen 成立自己的进程组
     # https://www.cnblogs.com/gracefulb/p/6893166.html
-    # 因此利用这个特性，就可以通过 preexec_fn 参数让 Popen 成立自己的进程组， 然后再向进程组发送 SIGTERM 或 SIGKILL，中止 subprocess.Popen 所启动进程的子子孙孙。当然，前提是这些子子孙孙中没有进程再调用 setsid 分裂自立门户。
+    # 因此利用这个特性，就可以通过 preexec_fn 参数让 Popen 成立自己的进程组， 然后再向进程组发送 SIGTERM 或 SIGKILL，中止 subprocess.Popen 所启动进程的子子孙孙。
+    # 当然，前提是这些子子孙孙中没有进程再调用 setsid 分裂自立门户。
     ic("BHive-noUseOSACA-before",process.pid,process.poll())
     time.sleep(0.2)
     while process.poll() is None: # poll()(好像BHive208/有时候变成176.是正常结束)返回0 正常结束， 1 sleep， 2 子进程不存在，-15 kill，None 在运行

@@ -34,12 +34,8 @@ class Process(mp.Process):
         return self._exception
 
 def paralleReadProcess(filename,sendPipe,rank, startFileLine,endFileLine, queueDict):
-    # unique_revBiblock_Queue,frequencyRevBiBlock_Queue,OSACA_CPLCDmax_CyclesRevBiBlock_Queue,OSACACPCyclesRevBiBlock_Queue,OSACALCDCyclesRevBiBlock_Queue,BhiveCyclesRevBiBlock_Queue,accuracyMax_Queue,accuracyCP_Queue,llvmmcaCyclesRevBiBlock_Queue,accuracyLLVM_Queue):
-    # print("MPI Process Start {:2d} {}~{}".format(rank,startFileLine,endFileLine))
-    fread=open(filename, 'r')
+    fread=open(filename, 'r') 
 
-    # subDataDict=dataDictInit()
-    
     unique_revBiblock=set()
     frequencyRevBiBlock = defaultdict(int)
     llvmmcaCyclesRevBiBlock = defaultdict(int)
@@ -59,7 +55,7 @@ def paralleReadProcess(filename,sendPipe,rank, startFileLine,endFileLine, queueD
     accuracyMax = defaultdict(float)
     accuracyAvg = defaultdict(float)
     accuracyCP = defaultdict(float)
-    # for line in tqdm(fread.readlines()[startFileLine:endFileLine],total=endFileLine-startFileLine,desc=str("{:2d}".format(rank))):
+
     i=1
     sendSkipNum=int((endFileLine-startFileLine)/100)+1
     try:
@@ -116,10 +112,8 @@ def paralleReadProcess(filename,sendPipe,rank, startFileLine,endFileLine, queueD
 
     sendPipe.send(i+sendSkipNum)
     sendPipe.close()
-    # print("MPI Process end {:2d} {}~{}".format(rank,startFileLine,endFileLine))
 
 def fileLineNum(filename):
-    # filename=glv._get("filename")
     fread=open(filename, 'r')
     num_file = sum([1 for i in open(filename, "r")])
     glv._set("num_file",num_file)
@@ -163,7 +157,6 @@ def mergeHistory2dataDict(historyDict,dataDict):
     return dataDict
 
 def parallelReadPartFile(taskName,filename, dataDict):
-    # unique_revBiblock,frequencyRevBiBlock,OSACA_CPLCDmax_CyclesRevBiBlock,OSACACPCyclesRevBiBlock,OSACALCDCyclesRevBiBlock,BhiveCyclesRevBiBlock,accuracyMax,accuracyCP,llvmmcaCyclesRevBiBlock,accuracyLLVM):
     num_file=fileLineNum(filename)
     ProcessNum=glv._get("ProcessNum")
 
@@ -196,22 +189,14 @@ def parallelReadPartFile(taskName,filename, dataDict):
         time.sleep(5)
 
     yellowPrint("Reducing parallel processes result...")
-    # for p in pList:
-    #     p.join() # 避免僵尸进程
         
-    # for i in tqdm(range(ProcessNum)):
     for i in range(ProcessNum):
-        # print("MPISum rank : {}, blockNum : {},leftQueueNum : {}".format(i,len(unique_revBiblock),unique_revBiblock_Queue.qsize()))
         dataDict=mergeQueue2dataDict(queueDict,dataDict)
     # 不需要merge，不然误差会降低一半
     # if glv._get("isPageExisted")=="yes":
     #     dataDict=mergeHistory2dataDict(glv._get("historyDict"),dataDict)
     return dataDict
-    # print(unique_revBiblock)
-    # print(frequencyRevBiBlock)
-    # print(accuracyMax)
-    # print(len(unique_revBiblock))
-    # print(len(frequencyRevBiBlock))
+
 def mergeKendallIndexQueueDict(queueDict,ProcessNum):
     concordantPairsNum=0
     disConcordantPairsNum=0
@@ -266,10 +251,6 @@ def parallelCalculateKendallIndex(taskName,dataDict):
         sys.stdout.flush()
         time.sleep(5)
 
-    # for p in pList:
-    #     p.join() # 避免僵尸进程
-        
-    # for i in tqdm(range(ProcessNum)):
     [concordantPairsNum,disConcordantPairsNum,concordantPairsNumOfBaseline,disConcordantPairsNumOfBaseline]\
             =mergeKendallIndexQueueDict(queueDict,ProcessNum)
     # 不需要merge，不然误差会降低一半
@@ -279,8 +260,3 @@ def parallelCalculateKendallIndex(taskName,dataDict):
     baselineKendallIndex = (concordantPairsNumOfBaseline - disConcordantPairsNumOfBaseline)*1.0 /  (concordantPairsNumOfBaseline + disConcordantPairsNumOfBaseline)
     
     return [KendallIndex, baselineKendallIndex]
-    # print(unique_revBiblock)
-    # print(frequencyRevBiBlock)
-    # print(accuracyMax)
-    # print(len(unique_revBiblock))
-    # print(len(frequencyRevBiBlock))
