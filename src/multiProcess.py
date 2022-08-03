@@ -75,7 +75,7 @@ def paralleReadProcess(filename,sendPipe,rank, startFileLine,endFileLine, queueD
 
             OSACAInput=saveOSACAInput2File(capstoneList(capstoneInput(block)),rank)
             [OSACA_CPLCDmax_CyclesRevBiBlock[block], OSACA_CPLCDavg_CyclesRevBiBlock[block] ,\
-             OSACACPCyclesRevBiBlock[block],         OSACALCDCyclesRevBiBlock[block]] = OSACA(OSACAInput)
+             OSACACPCyclesRevBiBlock[block],         OSACALCDCyclesRevBiBlock[block]] = OSACA(block,OSACAInput)
 
             accuracyLLVM[block]= calculateAccuracyLLVM(BhiveCyclesRevBiBlock[block],llvmmcaCyclesRevBiBlock[block])
             accuracyLLVM_MuliplyFrequency[block]=accuracyLLVM[block]* frequencyRevBiBlock[block]

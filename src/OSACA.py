@@ -4,7 +4,7 @@ from terminal_command import TIMEOUT_COMMAND
 import re
 import pprint
 
-def OSACA(inputFile):
+def OSACA(block,inputFile):
 
     if glv._get("useOSACAHistoryData")=="yes" and glv._get("isPageExisted")=="yes":
         if block in glv._get("historyDict").dataDict["unique_revBiblock"]:
