@@ -36,7 +36,7 @@ def OSACA(block,inputFile):
             if len(resultList)>2:
                 LCD=resultList.pop()
                 CP=resultList.pop()
-                Max=max(resultList)
+                Max=max(CP,LCD)
                 AVG=(LCD+CP)*1.0/2
                 return [Max, AVG, CP, LCD]
             else:
