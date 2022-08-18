@@ -92,7 +92,7 @@ def generateHeatmapPic(taskName,dataDict):
 
     Z=X*0+1.0
     Z=Zfromllvm(Z,dataDict,scale,fineness)
-    # saveHeatmapDataForPaper(X,Y,Z,glv._get("excelOutPath")+"_data/"+taskName+'.HeatmapData')
+    saveHeatmapDataForPaper(X,Y,Z,glv._get("excelOutPath")+"_data/"+taskName+'.HeatmapData')
     drawPlt(X,Y,Z,taskName)
     plt.savefig("./pictures/"+taskName+'.png')
     
@@ -108,7 +108,7 @@ def generateHeatmapPic(taskName,dataDict):
     Z=X*0+1.0
     Z=ZfromBaseline(Z,dataDict,scale,fineness)
     drawPlt(X,Y,Z,taskName+"_baseline")
-    # saveHeatmapDataForPaper(X,Y,Z,glv._get("excelOutPath")+"_data/"+taskName+'.baselineHeatmapData')
+    saveHeatmapDataForPaper(X,Y,Z,glv._get("excelOutPath")+"_data/"+taskName+'.baselineHeatmapData')
     plt.savefig("./pictures/"+taskName+'_baseline.png')
 
     matplotlib.use("pgf")
@@ -124,17 +124,12 @@ def generateHeatmapPic(taskName,dataDict):
     timeEndPrint(sys._getframe().f_code.co_name,beginTime)
 
 def saveHeatmapDataForPaper(X,Y,Z,filename):
-    fw = open(filename, 'w')    #将要输出保存的文件地址
-    width=len(X)
-    height=len(Y)
-    ic(width,height)
-    ic(X,Y,Z)
-    for i in range(width):
-        if i%4 == 0:
-            for j in range(height):
-                # if Z[i][j]!= 1: # 每个点都需要
-                if j%4 == 0:
-                    fw.write(str(round(X[i][j],1))+" "+str(round(Y[i][j],1))+" "+str(Z[i][j]-1)+"\n")    # 将字符串写入文件中
-            fw.write("\n")
+    fw = open(filename, 'w',encoding='utf-8')    #将要输出保存的文件地址
+    saveDict={
+    "x":X,
+    "y":Y,
+    "z":Z
+    }
+    import json
+    json.dump(obj=saveDict, fp=fw)
     fw.close()
-
