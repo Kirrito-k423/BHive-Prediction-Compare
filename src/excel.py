@@ -112,7 +112,7 @@ def add2Excel(wb,name,isFirstSheet,dataDict):
     ws = wb[name]
     ws.append([ "num",                          "block_binary" ,                    "ARM64_assembly_code",  "Num_of_instructions",  "block_frequency",\
                 "block_frequency_percentage",   "LLVM-MCA_result",                  "Baseline",             "BHive",     \
-                "OSACA_CP",                      "OSACA_LCD",                        "OSACA_Max",            "OSACA_Avg",\
+                "OSACA_TP",                      "OSACA_LCD",                        "OSACA_Max",            "OSACA_Avg",\
                 "accuracyLLVM",                 "accuracyBaseline",                 "accuracyOSACA_Max",     "accuracyOSACA_Avg",\
                 "accuracyLLVM * block_frequency" ,  "accuracyBaseline * block_frequency",\
                 "accuracyOSACA_Max * block_frequency" ,  "accuracyOSACA_Avg * block_frequency" ]) # 添加行
@@ -167,8 +167,8 @@ def add2Excel(wb,name,isFirstSheet,dataDict):
                 int((len(tmp_block_binary_reverse)+1)/8),   frequencyRevBiBlock[tmp_block_binary_reverse],
                 '%.2f%%' % (frequencyPercentage * 100), llvmmcaCyclesRevBiBlock[tmp_block_binary_reverse],  BaselineCyclesRevBiBlock[tmp_block_binary_reverse], BhiveCyclesRevBiBlock[tmp_block_binary_reverse],
                 
-                OSACACPCyclesRevBiBlock[tmp_block_binary_reverse],OSACALCDCyclesRevBiBlock[tmp_block_binary_reverse],
-                OSACA_CPLCDmax_CyclesRevBiBlock[tmp_block_binary_reverse],OSACA_CPLCDavg_CyclesRevBiBlock[tmp_block_binary_reverse],
+                OSACATPCyclesRevBiBlock[tmp_block_binary_reverse],OSACALCDCyclesRevBiBlock[tmp_block_binary_reverse],
+                OSACA_TPLCDmax_CyclesRevBiBlock[tmp_block_binary_reverse],OSACA_TPLCDavg_CyclesRevBiBlock[tmp_block_binary_reverse],
                 
                 accuracyLLVM[tmp_block_binary_reverse],
                 accuracyBaseline[tmp_block_binary_reverse],
@@ -212,8 +212,8 @@ def add2Excel(wb,name,isFirstSheet,dataDict):
                     "not count", llvmmcaCyclesRevBiBlock[tmp_block_binary_reverse],  BaselineCyclesRevBiBlock[tmp_block_binary_reverse], \
                     BhiveCyclesRevBiBlock[tmp_block_binary_reverse],
                     
-                    OSACACPCyclesRevBiBlock[tmp_block_binary_reverse],OSACALCDCyclesRevBiBlock[tmp_block_binary_reverse],
-                    OSACA_CPLCDmax_CyclesRevBiBlock[tmp_block_binary_reverse],OSACA_CPLCDavg_CyclesRevBiBlock[tmp_block_binary_reverse],
+                    OSACATPCyclesRevBiBlock[tmp_block_binary_reverse],OSACALCDCyclesRevBiBlock[tmp_block_binary_reverse],
+                    OSACA_TPLCDmax_CyclesRevBiBlock[tmp_block_binary_reverse],OSACA_TPLCDavg_CyclesRevBiBlock[tmp_block_binary_reverse],
                     
                     accuracyLLVM[tmp_block_binary_reverse],
                     accuracyBaseline[tmp_block_binary_reverse],

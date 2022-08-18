@@ -8,9 +8,9 @@ def OSACA(block,inputFile):
 
     if glv._get("useOSACAHistoryData")=="yes" and glv._get("isPageExisted")=="yes":
         if block in glv._get("historyDict").dataDict["unique_revBiblock"]:
-            return [glv._get("historyDict").dataDict["OSACA_CPLCDmax_CyclesRevBiBlock"][block],\
-                    glv._get("historyDict").dataDict["OSACA_CPLCDavg_CyclesRevBiBlock"][block],\
-                    glv._get("historyDict").dataDict["OSACACPCyclesRevBiBlock"][block],\
+            return [glv._get("historyDict").dataDict["OSACA_TPLCDmax_CyclesRevBiBlock"][block],\
+                    glv._get("historyDict").dataDict["OSACA_TPLCDavg_CyclesRevBiBlock"][block],\
+                    glv._get("historyDict").dataDict["OSACATPCyclesRevBiBlock"][block],\
                     glv._get("historyDict").dataDict["OSACALCDCyclesRevBiBlock"][block]]
 
     command=glv._get("OSACAPath")+' --arch TSV110 '+str(inputFile)
@@ -36,11 +36,18 @@ def OSACA(block,inputFile):
             if len(resultList)>2:
                 LCD=resultList.pop()
                 CP=resultList.pop()
-                Max=max(CP,LCD)
-                AVG=(LCD+CP)*1.0/2
-                return [Max, AVG, CP, LCD]
             else:
                 return [-1,-1,-1,-1]
+            ic(LCD,CP)
+            TPMax=-1
+            for tmpTP in resultList:
+                ic(tmpTP,TPMax)
+                if tmpTP > TPMax:
+                    TPMax = tmpTP
+            Max=max(TPMax,LCD)
+            AVG=(LCD+TPMax)*1.0/2
+            return [Max, AVG, TPMax, LCD]
+            
         else:
             return [-1,-1,-1,-1]
     except Exception as e:

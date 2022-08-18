@@ -41,9 +41,9 @@ def paralleReadProcess(filename,sendPipe,rank, startFileLine,endFileLine, queueD
     llvmmcaCyclesRevBiBlock = defaultdict(int)
     BaselineCyclesRevBiBlock = defaultdict(int)
 
-    OSACA_CPLCDmax_CyclesRevBiBlock = defaultdict(float)
-    OSACA_CPLCDavg_CyclesRevBiBlock = defaultdict(float)
-    OSACACPCyclesRevBiBlock = defaultdict(float)
+    OSACA_TPLCDmax_CyclesRevBiBlock = defaultdict(float)
+    OSACA_TPLCDavg_CyclesRevBiBlock = defaultdict(float)
+    OSACATPCyclesRevBiBlock = defaultdict(float)
     OSACALCDCyclesRevBiBlock =  defaultdict(float)
 
     BhiveCyclesRevBiBlock = defaultdict(int)
@@ -74,17 +74,17 @@ def paralleReadProcess(filename,sendPipe,rank, startFileLine,endFileLine, queueD
             BaselineCyclesRevBiBlock[block] = LLVM_mcaBaseline(block,capstone(capstoneInput(block)))
 
             OSACAInput=saveOSACAInput2File(capstoneList(capstoneInput(block)),rank)
-            [OSACA_CPLCDmax_CyclesRevBiBlock[block], OSACA_CPLCDavg_CyclesRevBiBlock[block] ,\
-             OSACACPCyclesRevBiBlock[block],         OSACALCDCyclesRevBiBlock[block]] = OSACA(block,OSACAInput)
+            [OSACA_TPLCDmax_CyclesRevBiBlock[block], OSACA_TPLCDavg_CyclesRevBiBlock[block] ,\
+             OSACATPCyclesRevBiBlock[block],         OSACALCDCyclesRevBiBlock[block]] = OSACA(block,OSACAInput)
 
             accuracyLLVM[block]= calculateAccuracyLLVM(BhiveCyclesRevBiBlock[block],llvmmcaCyclesRevBiBlock[block])
             accuracyLLVM_MuliplyFrequency[block]=accuracyLLVM[block]* frequencyRevBiBlock[block]
             accuracyBaseline[block]= calculateAccuracyLLVM(BhiveCyclesRevBiBlock[block],BaselineCyclesRevBiBlock[block])
             accuracyBaseline_MuliplyFrequency[block]=accuracyBaseline[block]* frequencyRevBiBlock[block]
 
-            accuracyMax[block]= calculateAccuracyOSACA(BhiveCyclesRevBiBlock[block],OSACA_CPLCDmax_CyclesRevBiBlock[block],rank)
-            accuracyAvg[block]= calculateAccuracyOSACA(BhiveCyclesRevBiBlock[block],OSACA_CPLCDavg_CyclesRevBiBlock[block],rank)
-            accuracyCP[block]= calculateAccuracyOSACA(BhiveCyclesRevBiBlock[block],OSACACPCyclesRevBiBlock[block],rank)
+            accuracyMax[block]= calculateAccuracyOSACA(BhiveCyclesRevBiBlock[block],OSACA_TPLCDmax_CyclesRevBiBlock[block],rank)
+            accuracyAvg[block]= calculateAccuracyOSACA(BhiveCyclesRevBiBlock[block],OSACA_TPLCDavg_CyclesRevBiBlock[block],rank)
+            accuracyCP[block]= calculateAccuracyOSACA(BhiveCyclesRevBiBlock[block],OSACATPCyclesRevBiBlock[block],rank)
     except Exception as e:
         sendPipe.send(e)
         errorPrint("error = {}".format(e))
@@ -95,9 +95,9 @@ def paralleReadProcess(filename,sendPipe,rank, startFileLine,endFileLine, queueD
     queueDict.get("llvmmcaCyclesRevBiBlock").put(llvmmcaCyclesRevBiBlock)
     queueDict.get("BaselineCyclesRevBiBlock").put(BaselineCyclesRevBiBlock)
 
-    queueDict.get("OSACA_CPLCDmax_CyclesRevBiBlock").put(OSACA_CPLCDmax_CyclesRevBiBlock)
-    queueDict.get("OSACA_CPLCDavg_CyclesRevBiBlock").put(OSACA_CPLCDavg_CyclesRevBiBlock)
-    queueDict.get("OSACACPCyclesRevBiBlock").put(OSACACPCyclesRevBiBlock)
+    queueDict.get("OSACA_TPLCDmax_CyclesRevBiBlock").put(OSACA_TPLCDmax_CyclesRevBiBlock)
+    queueDict.get("OSACA_TPLCDavg_CyclesRevBiBlock").put(OSACA_TPLCDavg_CyclesRevBiBlock)
+    queueDict.get("OSACATPCyclesRevBiBlock").put(OSACATPCyclesRevBiBlock)
     queueDict.get("OSACALCDCyclesRevBiBlock").put(OSACALCDCyclesRevBiBlock)
     
     queueDict.get("BhiveCyclesRevBiBlock").put(BhiveCyclesRevBiBlock)
