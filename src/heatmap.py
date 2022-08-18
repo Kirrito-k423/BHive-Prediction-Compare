@@ -122,9 +122,9 @@ def generateHeatmapPic(taskName,dataDict):
 def saveHeatmapDataForPaper(X,Y,Z,filename):
     fw = open(filename, 'w',encoding='utf-8')    #将要输出保存的文件地址
     saveDict={
-    "x":X,
-    "y":Y,
-    "z":Z
+    "x":X.tolist(),
+    "y":Y.tolist(),
+    "z":Z.tolist()
     }
     import json
     json.dump(obj=saveDict, fp=fw)
