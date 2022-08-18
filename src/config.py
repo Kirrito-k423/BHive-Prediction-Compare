@@ -4,10 +4,11 @@ import time
 
 glv._init()
 
-glv._set("HistoryDataFile", "/home/shaojiemike/blockFrequency/Summary_BHiveCount5002022-08-02-17-52-18_tsj.xlsx") # for test
+glv._set("HistoryDataFile", "/home/shaojiemike/blockFrequency/Summary_BHiveCount5002022-08-03-10-47-17_tsj.xlsx") # for test
 
 glv._set("taskfilePath", "/home/shaojiemike/blockFrequency") # 输入文件集合所在的目录
 
+# glv._set("taskList",{"tensorflow_test_5.log":"test"})
 glv._set("taskList", 
                 {        
                 "ffmpeg_useFileNum_1_skipNum_0.log":"ffmpeg",
