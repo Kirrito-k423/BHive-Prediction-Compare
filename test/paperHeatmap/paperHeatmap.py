@@ -6,19 +6,19 @@ import matplotlib.colors as colors
 import matplotlib
 # import fontmanager
 
-dataPath="/home/shaojiemike/blockFrequency/Summary_BHiveCount5002022-08-18-11-19-58_tsj.xlsx_data/"
+dataPath="E:\Desktop\deskIcon\heatmap\Summary_BHiveCount5002022-08-18-11-19-58_tsj.xlsx_data"
 
 picName2fileDict={  
-                    # "Tensorflow":"Tensorflow_runLog_skip0",
-                    # "Clang":"Clang_runLog",
-                    # "Embree":"Embree",
-                    # "ffmpeg":"ffmpeg",
-                    # "Gzip":"Gzip",
-                    # "OpenBLAS":"OpenBLAS_level3_dgemm",
-                    # "FFTW":"FFTW_runLog",
-                    # "lapack(dgetrf)":"lapack_runLog(dgetrf)",
-                    # "Eigen_MM":"Eigen_MM_Middle",
-                    # "Eigen_MV":"Eigen_MV",
+                    "Tensorflow":"Tensorflow_runLog_skip0",
+                    "Clang":"Clang_runLog",
+                    "Embree":"Embree",
+                    "FFmpeg":"ffmpeg",
+                    "Gzip":"Gzip",
+                    "OpenBLAS":"OpenBLAS_level3_dgemm",
+                    "FFTW":"FFTW_runLog",
+                    "LAPACK(dgetrf)":"lapack_runLog(dgetrf)",
+                    "Eigen_MM":"Eigen_MM_Middle",
+                    "Eigen_MV":"Eigen_MV",
                     "Redis":"Redis_skip0"
                     }
 
@@ -26,21 +26,22 @@ def drawPlt(X,Y,Z,taskName):
     fig, ax = plt.subplots()
     fig.set_size_inches(w=7.1413, h=5.75) #(8, 6.5)
 
-    fontSize=16
+    fontSize=22
     ax.set_title(taskName,fontsize=fontSize,fontfamily="Times New Roman")
     ax.set_xlabel('Measured Throughput(Bhive)',fontsize=fontSize,fontfamily="Times New Roman")
     ax.set_ylabel('Predicted Throughput(llvm-mca)',fontsize=fontSize,fontfamily="Times New Roman")
 
     # Color: https://juejin.cn/post/6844904145032331272
     dotDensity=75
+    dashLineWidth=0.5
     dashLine = np.mgrid[0:10:complex(0, dotDensity)]
-    ax.plot( dashLine, dashLine,        linewidth=0.25,linestyle=":",color='silver') 
-    ax.plot( dashLine, 0.9*dashLine,    linewidth=0.25,linestyle=":",color='springgreen') 
-    ax.plot( dashLine, 0.8*dashLine,    linewidth=0.25,linestyle=":",color='royalblue') 
+    ax.plot( dashLine, dashLine,        linewidth=1,linestyle=":",color='silver') 
+    ax.plot( dashLine, 0.9*dashLine,    linewidth=dashLineWidth,linestyle=":",color='springgreen') 
+    ax.plot( dashLine, 0.8*dashLine,    linewidth=dashLineWidth,linestyle=":",color='royalblue') 
     dashLine = np.mgrid[0:10/1.1:complex(0, dotDensity)]
-    ax.plot( dashLine, 1.1*dashLine,    linewidth=0.25,linestyle=":",color='springgreen') 
+    ax.plot( dashLine, 1.1*dashLine,    linewidth=dashLineWidth,linestyle=":",color='springgreen') 
     dashLine = np.mgrid[0:10/1.2:complex(0, dotDensity)]
-    ax.plot( dashLine, 1.2*dashLine,    linewidth=0.25,linestyle=":",color='royalblue') 
+    ax.plot( dashLine, 1.2*dashLine,    linewidth=dashLineWidth,linestyle=":",color='royalblue') 
     pcm = ax.pcolor(X, Y, Z-1.0,
                     norm=colors.LogNorm(vmin=Z.min(), vmax=Z.max()),
                     cmap='Blues')
@@ -67,14 +68,17 @@ def readDataFromJson(filename):
     return [X,Y,Z]
     
 def main():
-    ic(matplotlib.matplotlib_fname())
+    # ic(matplotlib.matplotlib_fname())
     # ic(fontmanager.get_cachedir())
     # ic(fontmanager._fmcache)
     for key,filename in picName2fileDict.items():
         ic(key,filename)
-        [X,Y,Z]=readDataFromJson(dataPath+filename+".HeatmapData")
+        [X,Y,Z]=readDataFromJson(dataPath+"\\"+filename+".HeatmapData")
         drawPlt(X,Y,Z,key)
         plt.savefig("./test/heatMapPic/"+key+'.png',bbox_inches="tight")
+        [X,Y,Z]=readDataFromJson(dataPath+"\\"+filename+".baselineHeatmapData")
+        drawPlt(X,Y,Z,key)
+        plt.savefig("./test/heatMapPic/"+key+'_baseline.png',bbox_inches="tight")
     
 if __name__ == "__main__":
     main()
