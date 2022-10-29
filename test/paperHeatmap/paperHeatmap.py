@@ -6,7 +6,7 @@ import matplotlib.colors as colors
 import matplotlib
 # import fontmanager
 
-dataPath="E:\Desktop\deskIcon\heatmap\Summary_BHiveCount5002022-08-18-11-19-58_tsj.xlsx_data"
+dataPath="D:\Desktop\\tmp\Summary_BHiveCount5002022-08-18-11-19-58_tsj.xlsx_data"
 
 picName2fileDict={  
                     "Tensorflow":"Tensorflow_runLog_skip0",
@@ -32,16 +32,17 @@ def drawPlt(X,Y,Z,taskName):
     ax.set_ylabel('Predicted Throughput(llvm-mca)',fontsize=fontSize,fontfamily="Times New Roman")
 
     # Color: https://juejin.cn/post/6844904145032331272
-    dotDensity=75
+    dotDensity=750
     dashLineWidth=0.5
+    linestyle='solid'
     dashLine = np.mgrid[0:10:complex(0, dotDensity)]
-    ax.plot( dashLine, dashLine,        linewidth=1,linestyle=":",color='silver') 
-    ax.plot( dashLine, 0.9*dashLine,    linewidth=dashLineWidth,linestyle=":",color='springgreen') 
-    ax.plot( dashLine, 0.8*dashLine,    linewidth=dashLineWidth,linestyle=":",color='royalblue') 
+    ax.plot( dashLine, dashLine,        linewidth=dashLineWidth,linestyle=linestyle,color='royalblue') 
+    ax.plot( dashLine, 0.9*dashLine,    linewidth=dashLineWidth,linestyle=linestyle,color='springgreen') 
+    ax.plot( dashLine, 0.8*dashLine,    linewidth=dashLineWidth,linestyle=linestyle,color='silver') 
     dashLine = np.mgrid[0:10/1.1:complex(0, dotDensity)]
-    ax.plot( dashLine, 1.1*dashLine,    linewidth=dashLineWidth,linestyle=":",color='springgreen') 
+    ax.plot( dashLine, 1.1*dashLine,    linewidth=dashLineWidth,linestyle=linestyle,color='springgreen') 
     dashLine = np.mgrid[0:10/1.2:complex(0, dotDensity)]
-    ax.plot( dashLine, 1.2*dashLine,    linewidth=dashLineWidth,linestyle=":",color='royalblue') 
+    ax.plot( dashLine, 1.2*dashLine,    linewidth=dashLineWidth,linestyle=linestyle,color='silver') 
     pcm = ax.pcolor(X, Y, Z-1.0,
                     norm=colors.LogNorm(vmin=Z.min(), vmax=Z.max()),
                     cmap='Blues')
