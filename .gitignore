@@ -59,3 +59,4 @@ Pyenv/*
 *.pyc
 *.png
 *.pgf
+.ccls-cache

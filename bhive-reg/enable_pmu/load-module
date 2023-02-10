@@ -1,0 +1,2 @@
+#!/bin/sh
+/sbin/insmod ./pmu_kernel_module/pmu_module.ko || exit 1

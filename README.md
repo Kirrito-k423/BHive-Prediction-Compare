@@ -15,7 +15,14 @@ Reimplementation of the BHive profiler on ARMv7 kunpeng processor. The original 
 ### 安装Bhive
 代码位于 `./bhive-reg`下，`make`产生`bhive`可执行文件。
 
-安装完，测试如下：
+由于bhive部分代码涉及 pmu事件的采集，需要开启用户态下读取寄存器的权限(每次重启都需要执行)：
+```
+cd bhive-reg/enable_pmu/pmu_kernel_module
+make clean
+make
+sudo ../load-module
+```
+安装完并开启权限，测试如下：
 ```
 qcjiang@brainiac1:~/tests$ bhive \xc1\x02\x40\xb9\xe0\x03\x01\x2a\x00\x00\x18\xca\x00\xfc\x41\xd3\xd6\x12\x00\x91\xc1\x02\x40\xb9\xe0\x03\x01\x2a
 

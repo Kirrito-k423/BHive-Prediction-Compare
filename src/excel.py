@@ -206,7 +206,8 @@ def add2Excel(wb,name,isFirstSheet,dataDict):
             unvalidNum+=1
             if glv._get("printUnsupportedBlock")=='yes':
                 lineNum+=1
-                frequencyPercentage=frequencyRevBiBlock[tmp_block_binary_reverse]*1.0/validInstructionNum
+                if validInstructionNum != 0:
+                    frequencyPercentage=frequencyRevBiBlock[tmp_block_binary_reverse]*1.0/validInstructionNum
                 ws.append(["{:5d} ".format(lineNum),        tmp_block_binary_reverse                            ,tmpARMassembly,                                     \
                     int((len(tmp_block_binary_reverse)+1)/8),   frequencyRevBiBlock[tmp_block_binary_reverse],
                     "not count", llvmmcaCyclesRevBiBlock[tmp_block_binary_reverse],  BaselineCyclesRevBiBlock[tmp_block_binary_reverse], \
