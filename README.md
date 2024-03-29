@@ -7,7 +7,7 @@ Reimplementation of the BHive profiler on ARMv7 kunpeng processor. The original 
 
 ## 仓库功能
 
-![](https://shaojiemike.oss-cn-hangzhou.aliyuncs.com/img/20220712154020.png)
+![](https://pic.shaojiemike.top/img/20220712154020.png)
 
 该仓库属于流程图的淡紫色模块的实现。
 
